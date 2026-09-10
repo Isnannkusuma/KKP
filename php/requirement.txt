@@ -1,0 +1,3 @@
+paddleocr
+unstructured
+unstructured-inference

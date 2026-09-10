@@ -1,0 +1,17 @@
+# Environment (JANGAN bawa ke image)
+.env
+.env.local
+
+# Dependencies (akan di-handle oleh volume mount atau fallback)
+node_modules/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+
+# Git
+.git/
+
+public/storage
+public/build

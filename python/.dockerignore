@@ -1,0 +1,56 @@
+# ============================================
+# AI Models (CRITICAL: Blokir agar tidak terkirim 2GB+ ke Docker)
+# Kita sudah pakai volume mount di docker-compose.yml, jadi ini tidak perlu di-COPY
+# ============================================
+models/
+*.bin
+*.safetensors
+*.onnx
+
+# ============================================
+# Virtual Environments (CRITICAL: Blokir agar tidak terkirim)
+# ============================================
+venv/
+.venv/
+env/
+ENV/
+
+# ============================================
+# Python Cache & Build Files
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ============================================
+# Environment & IDE
+# ============================================
+.env
+.env.local
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ============================================
+# Git
+# ============================================
+.git/
+.gitignore

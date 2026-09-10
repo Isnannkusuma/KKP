@@ -1,0 +1,33 @@
+# Ignore node_modules folder in the php directory
+/php/node_modules
+
+# Ignore build artifacts in the php directory
+/php/public/build
+
+# Ignore Composer dependencies in the php directory
+/php/vendor
+
+/php/*.zip
+
+# Ignore specific files and directories in the php directory
+/php/public/fonts-manifest.dev.json
+/php/public/hot
+/php/public/storage
+/php/storage/*.key
+/php/storage/pail
+
+# Ignore Python cache and virtual environment directories
+/python/__pycache__
+/python/*/__pycache__
+
+# Ignore virtual environment and model files in the python directory
+/python/venv
+/python/models/*
+
+# Ignore specific Python script
+/python/download_model_efficient.py
+
+# Ignore zip files in the python directory
+/python/*.zip
+
+.env
