@@ -16,6 +16,7 @@ export interface ApiServiceItem {
     description: string | null;
     method: string;
     url: string;
+    inspect_url?: string | null;
     headers: Record<string, string>;
     query_params: Record<string, unknown>;
     body: Record<string, unknown>;

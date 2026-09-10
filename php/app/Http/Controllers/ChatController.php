@@ -36,6 +36,7 @@ class ChatController extends Controller
         'sumbu x', 'sumbu y', 'kompetensi', 'pemetaan', 'triwulan',
         'bangkom', 'rekomendasi bangkom', 'pengembangan kompetensi',
         'data kepegawaian', 'data pemetaan', 'data rekomendasi',
+        'pensiun', 'bup', 'batas usia pensiun', 'tahun pensiun',
     ];
 
     /**
@@ -139,14 +140,14 @@ class ChatController extends Controller
                             $combinedAnswer = $this->personalContextToAnswer($combinedContext, $sanitizedMessage);
 
                             return response()->json([
-                                'answer' => $bangkomAnswer . "\n\n" . $combinedAnswer,
+                                'answer' => $this->withGreeting($bangkomAnswer . "\n\n" . $combinedAnswer),
                                 'sources' => [],
                             ]);
                         }
                     }
 
                     return response()->json([
-                        'answer' => $bangkomAnswer,
+                        'answer' => $this->withGreeting($bangkomAnswer),
                         'sources' => [],
                     ]);
                 }
@@ -154,7 +155,7 @@ class ChatController extends Controller
 
             if ($this->shouldReturnPersonalDataDirectly($userMessage) && !empty($personalContext)) {
                 return response()->json([
-                    'answer' => $this->personalContextToAnswer($personalContext, $userMessage),
+                    'answer' => $this->withGreeting($this->personalContextToAnswer($personalContext, $userMessage)),
                     'sources' => [],
                 ]);
             }
@@ -241,7 +242,7 @@ class ChatController extends Controller
             if (empty($validContextParts) && empty($personalContext)) {
 
                 return response()->json([
-                    'answer' => $this->outOfScopeMessage,
+                    'answer' => $this->withGreeting($this->outOfScopeMessage),
                     'sources' => [],
                 ]);
             }
@@ -437,7 +438,7 @@ class ChatController extends Controller
                     $isOutOfScope = str_contains($answer, 'di luar lingkup layanan Asisten AI ini');
 
                     return response()->json([
-                        'answer' => $answer,
+                        'answer' => $this->withGreeting($answer),
                         'sources' => $isOutOfScope ? [] : $sources,
                     ]);
                 }
@@ -501,7 +502,7 @@ class ChatController extends Controller
                             $isOutOfScope = str_contains($groqAnswer, 'di luar lingkup layanan Asisten AI ini');
 
                             return response()->json([
-                                'answer' => $groqAnswer,
+                                'answer' => $this->withGreeting($groqAnswer),
                                 'sources' => $isOutOfScope ? [] : $sources,
                             ]);
                         }
@@ -525,9 +526,8 @@ class ChatController extends Controller
             }
 
             return response()->json([
-                'error' =>
-                    'Gagal menghubungi layanan AI. '
-                    . 'Silakan coba lagi nanti.',
+                'answer' => $this->withGreeting('Gagal menghubungi layanan AI. Silakan coba lagi nanti.'),
+                'sources' => [],
             ], 500);
 
         } catch (\Exception $e) {
@@ -538,8 +538,8 @@ class ChatController extends Controller
             ]);
 
             return response()->json([
-                'error' =>
-                    'Terjadi kesalahan sistem. Silakan coba lagi.',
+                'answer' => $this->withGreeting('Terjadi kesalahan sistem. Silakan coba lagi.'),
+                'sources' => [],
             ], 500);
         }
     }
@@ -705,6 +705,7 @@ class ChatController extends Controller
             . "Lama Jabatan: {$lamaJabatan}\n"
             . "Pangkat: " . ($pegawaiData['pangkat'] ?? '') . "\n"
             . "Unit Kerja: " . ($pegawaiData['nama_unor'] ?? '') . "\n"
+            . "BUP: " . ($pegawaiData['bup'] ?? $pegawaiData['tahun_bup'] ?? '') . "\n"
             . "Tempat, Tanggal Lahir: " . ($pegawaiData['tempat_lahir'] ?? '') . ", "
             . ($pegawaiData['tgl_lahir'] ?? '') . "\n"
             . "Masa Kerja: " . ($pegawaiData['mk_tahun'] ?? '') . " tahun "
@@ -729,6 +730,7 @@ class ChatController extends Controller
     {
         $labels = [
             'nip' => 'NIP',
+            'bup' => 'Batas Usia Pensiun (BUP)',
             'n_ku' => 'Total Nilai Kinerja Utama (n_ku)',
             'n_kp' => 'Total Nilai Kinerja Penguat (n_kp)',
             'n_integmoral' => 'Integritas dan Moralitas (n_integmoral)',
@@ -825,6 +827,8 @@ class ChatController extends Controller
             || str_contains($normalizedMessage, 'total nilai kinerja utama')
             || str_contains($normalizedMessage, 'nilai kinerja utama');
 
+        $isPensiunQuestion = $this->isPensiunQuestion($message);
+
         $isPositionQuestion = (str_contains($normalizedMessage, 'jabatan')
             || str_contains($normalizedMessage, 'posisi'))
             && (str_contains($normalizedMessage, 'saya')
@@ -837,6 +841,10 @@ class ChatController extends Controller
             || $isIdentityQuestion
             || $this->isNipQuestion($message)
             || $this->isQuadrantQuestion($message)
+            || $this->isPangkatQuestion($message)
+            || $this->isUnitKerjaQuestion($message)
+            || $this->isRiwayatJabatanQuestion($message)
+            || $isPensiunQuestion
             || $isPositionQuestion
             || $isMainPerformanceScoreQuestion;
     }
@@ -871,15 +879,35 @@ class ChatController extends Controller
             return $this->personalDataLine($personalContext, 'NIP:');
         }
 
+        if ($this->isPangkatQuestion($message)) {
+            return $this->personalDataLine($personalContext, 'Pangkat:');
+        }
+
+        if ($this->isUnitKerjaQuestion($message)) {
+            return $this->personalDataLine($personalContext, 'Unit Kerja:');
+        }
+
         if ($this->isQuadrantQuestion($message)) {
             return $this->personalDataLine($personalContext, 'Box Kuadran (box):');
+        }
+
+        if ($this->isPensiunQuestion($message)) {
+            $bupLine = $this->personalDataLine($personalContext, 'BUP:');
+
+            if ($bupLine !== '') {
+                return $bupLine;
+            }
+
+            $fallback = $this->personalDataLine($personalContext, 'Batas Usia Pensiun (BUP):');
+
+            return $fallback !== '' ? $fallback : 'Data BUP Anda belum tersedia.';
         }
 
         if ($this->isMappingFieldQuestion($message)) {
             return $this->mappingFieldAnswer($personalContext, $message);
         }
 
-        if ($this->isPositionQuestion($message)) {
+        if ($this->isRiwayatJabatanQuestion($message) || $this->isPositionQuestion($message)) {
             $lines = preg_split('/\R/', $personalContext) ?: [];
             $positionLines = array_values(array_filter(
                 $lines,
@@ -887,7 +915,7 @@ class ChatController extends Controller
                     || str_starts_with($line, 'Lama Jabatan:')
             ));
 
-            return implode("\n", $positionLines);
+            return $positionLines !== [] ? implode("\n", $positionLines) : 'Data jabatan Anda belum tersedia.';
         }
 
         if ($this->isMainPerformanceScoreQuestion($message)) {
@@ -906,6 +934,10 @@ class ChatController extends Controller
         }
 
         if ($this->isBangkomSummaryQuestion($message)) {
+            if ($this->isBangkomSpecificItemQuestion($message)) {
+                return $this->bangkomSpecificAnswer($personalContext, $message);
+            }
+
             return "Berikut rekomendasi pengembangan kompetensi (bangkom) Anda yang tersedia:\n\n"
                 . $this->bangkomPersonalDataOnly($personalContext);
         }
@@ -926,6 +958,9 @@ class ChatController extends Controller
             || str_contains($normalizedMessage, 'pemetaan kinerja')
             || str_contains($normalizedMessage, 'data pemetaan')
             || str_contains($normalizedMessage, 'pemetaan pegawai')
+            || str_contains($normalizedMessage, 'data pemetaan pegawai dan talenta')
+            || str_contains($normalizedMessage, 'pemetaan pegawai dan talenta')
+            || str_contains($normalizedMessage, 'informasi data pemetaan pegawai dan talenta')
             || str_contains($normalizedMessage, 'data hasil pemetaan')
             || str_contains($normalizedMessage, 'data talent')
             || str_contains($normalizedMessage, 'data talenta')
@@ -952,7 +987,29 @@ class ChatController extends Controller
 
         return str_contains($normalizedMessage, 'box kuadran')
             || str_contains($normalizedMessage, 'kuadran saya')
-            || str_contains($normalizedMessage, 'saya ada di box');
+            || str_contains($normalizedMessage, 'saya ada di box')
+            || str_contains($normalizedMessage, 'box berapa')
+            || str_contains($normalizedMessage, 'saya ada di box berapa');
+    }
+
+    protected function isPangkatQuestion(string $message): bool
+    {
+        $normalizedMessage = mb_strtolower($message);
+
+        return (str_contains($normalizedMessage, 'pangkat') || str_contains($normalizedMessage, 'golongan'))
+            && (str_contains($normalizedMessage, 'saya')
+                || str_contains($normalizedMessage, 'bapak')
+                || str_contains($normalizedMessage, 'ibu'));
+    }
+
+    protected function isUnitKerjaQuestion(string $message): bool
+    {
+        $normalizedMessage = mb_strtolower($message);
+
+        return (str_contains($normalizedMessage, 'unit kerja') || str_contains($normalizedMessage, 'unit saya'))
+            && (str_contains($normalizedMessage, 'saya')
+                || str_contains($normalizedMessage, 'bapak')
+                || str_contains($normalizedMessage, 'ibu'));
     }
 
     protected function isMappingFieldQuestion(string $message): bool
@@ -996,7 +1053,77 @@ class ChatController extends Controller
         $normalizedMessage = mb_strtolower($message);
 
         return str_contains($normalizedMessage, 'bangkom')
-            || str_contains($normalizedMessage, 'pengembangan kompetensi');
+            || str_contains($normalizedMessage, 'rekomendasi bangkom')
+            || str_contains($normalizedMessage, 'rekomendasis bangkom')
+            || str_contains($normalizedMessage, 'rekomendasi bangkom saya')
+            || str_contains($normalizedMessage, 'pengembangan kompetensi')
+            || str_contains($normalizedMessage, 'rekomendasi pengembangan kompetensi')
+            || str_contains($normalizedMessage, 'bangkom') && preg_match('/\b\d+\b/', $normalizedMessage) === 1;
+    }
+
+    protected function isBangkomSpecificItemQuestion(string $message): bool
+    {
+        $normalizedMessage = mb_strtolower($message);
+
+        return str_contains($normalizedMessage, 'bangkom')
+            && (
+                preg_match('/\bbangkom\s*(\d+)\b/', $normalizedMessage, $matches) === 1
+                || str_contains($normalizedMessage, 'aspek')
+                || str_contains($normalizedMessage, 'nilai')
+                || str_contains($normalizedMessage, 'gap')
+            );
+    }
+
+    protected function bangkomSpecificAnswer(string $personalContext, string $message): string
+    {
+        $lines = preg_split('/\R/', $personalContext) ?: [];
+        $bangkomLines = array_values(array_filter(
+            $lines,
+            fn (string $line): bool => str_starts_with($line, 'Detail Pengembangan Kompetensi (bangkom):')
+                || str_starts_with($line, 'Rekomendasi Bangkom ')
+                || str_starts_with($line, '- Aspek:')
+                || str_starts_with($line, '- Nilai:')
+                || str_starts_with($line, '- Gap:')
+                || str_starts_with($line, '- Rekomendasi Pelatihan:')
+                || str_starts_with($line, '- Penunjang Lainnya:')
+                || str_starts_with($line, '- Bentuk Kegiatan Non-Klasikal:')
+                || str_starts_with($line, '- Mandiri:')
+        ));
+
+        if ($bangkomLines === []) {
+            return 'Data rekomendasi bangkom Anda belum tersedia.';
+        }
+
+        $normalized = mb_strtolower($message);
+        $specificNumber = null;
+        if (preg_match('/\bbangkom\s*(\d+)\b/', $normalized, $matches) === 1) {
+            $specificNumber = (int) $matches[1];
+        }
+
+        if ($specificNumber !== null) {
+            $needle = 'Rekomendasi Bangkom ' . $specificNumber . ':';
+            $selected = [];
+            $capture = false;
+
+            foreach ($bangkomLines as $line) {
+                if ($line === $needle) {
+                    $capture = true;
+                    $selected[] = $line;
+                    continue;
+                }
+
+                if ($capture) {
+                    $selected[] = $line;
+                    if (str_starts_with($line, 'Rekomendasi Bangkom ') && $line !== $needle) {
+                        break;
+                    }
+                }
+            }
+
+            return $selected !== [] ? implode("\n", $selected) : 'Data bangkom nomor ' . $specificNumber . ' tidak tersedia.';
+        }
+
+        return implode("\n", $bangkomLines);
     }
 
     protected function isMultiResponseQuestion(string $message): bool
@@ -1078,6 +1205,8 @@ class ChatController extends Controller
 
         return str_contains($normalizedMessage, 'data kepegawaian')
             || str_contains($normalizedMessage, 'data pribadi')
+            || str_contains($normalizedMessage, 'informasi data pribadi saya')
+            || str_contains($normalizedMessage, 'informasi data kepegawaian saya')
             || str_contains($normalizedMessage, 'data diri')
             || str_contains($normalizedMessage, 'data pegawai')
             || str_contains($normalizedMessage, 'data saya')
@@ -1129,6 +1258,43 @@ class ChatController extends Controller
             && (str_contains($normalizedMessage, 'saya')
                 || str_contains($normalizedMessage, 'bapak')
                 || str_contains($normalizedMessage, 'ibu'));
+    }
+
+    protected function isPensiunQuestion(string $message): bool
+    {
+        $normalizedMessage = mb_strtolower($message);
+
+        return str_contains($normalizedMessage, 'pensiun')
+            || str_contains($normalizedMessage, 'bup')
+            || str_contains($normalizedMessage, 'batas usia pensiun')
+            || str_contains($normalizedMessage, 'kapan pensiun')
+            || str_contains($normalizedMessage, 'tahun pensiun');
+    }
+
+    protected function isRiwayatJabatanQuestion(string $message): bool
+    {
+        $normalizedMessage = mb_strtolower($message);
+
+        return (str_contains($normalizedMessage, 'riwayat jabatan')
+            || str_contains($normalizedMessage, 'riwayat posisi'))
+            && (str_contains($normalizedMessage, 'saya')
+                || str_contains($normalizedMessage, 'bapak')
+                || str_contains($normalizedMessage, 'ibu'));
+    }
+
+    protected function withGreeting(string $answer): string
+    {
+        $clean = trim((string) $answer);
+
+        if ($clean === '') {
+            return $clean;
+        }
+
+        if (preg_match('/^(Selamat\s+(datang|pagi|siang|sore|malam)|Halo)/i', $clean) === 1) {
+            return $clean;
+        }
+
+        return "Selamat datang Bapak/Ibu. Berikut informasinya:\n\n" . $clean;
     }
 
     protected function sanitizeAiAnswer(string $answer): string

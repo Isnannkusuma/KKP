@@ -91,6 +91,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/service-api', [ApiServiceController::class, 'store'])
             ->name('api-services.store');
 
+        Route::post('/service-api/inspect', [ApiServiceController::class, 'inspect'])
+            ->name('api-services.inspect');
+
         Route::put('/service-api/{apiService}', [ApiServiceController::class, 'update'])
             ->name('api-services.update');
 

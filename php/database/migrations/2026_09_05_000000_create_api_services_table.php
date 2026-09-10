@@ -14,6 +14,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->string('method', 10)->default('GET');
             $table->text('url');
+            $table->text('inspect_url')->nullable();
             $table->text('headers')->nullable();
             $table->json('query_params')->nullable();
             $table->json('body')->nullable();

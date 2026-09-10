@@ -14,6 +14,7 @@ class ApiService extends Model
         'description',
         'method',
         'url',
+        'inspect_url',
         'headers',
         'query_params',
         'body',

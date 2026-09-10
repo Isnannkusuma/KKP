@@ -49,6 +49,71 @@ test('admin can create an api service with encrypted secrets', function () {
         ->and($service->response_fields[0]['path'])->toBe('data.nama');
 });
 
+test('admin can inspect endpoint and return flattened response fields', function () {
+    Http::fake([
+        'https://example.com/pegawai/19880101' => Http::response([
+            'success' => true,
+            'data' => [
+                'id_peg_siasn' => 'A8ACA7EB81FA3912E040640A040269BB',
+                'nip' => '19880101',
+                'komp' => '28.25',
+                'tahun_bup' => 'August 2038',
+            ],
+        ], 200),
+    ]);
+
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $this->withoutMiddleware()
+        ->actingAs($admin)
+        ->post(route('api-services.inspect'), [
+            'method' => 'GET',
+            'url' => 'https://example.com/pegawai/{{nip}}',
+            'headers' => ['Authorization' => 'Bearer test-token'],
+            'query_params' => [],
+            'body' => [],
+            'sample_values' => ['nip' => '19880101'],
+        ])
+        ->assertOk()
+        ->assertJsonPath('fields.0.name', 'id_peg_siasn')
+        ->assertJsonPath('fields.0.path', 'data.id_peg_siasn')
+        ->assertJsonPath('fields.1.name', 'nip')
+        ->assertJsonPath('fields.2.name', 'komp')
+        ->assertJsonPath('fields.3.name', 'tahun_bup');
+});
+
+test('admin can inspect endpoint without duplicated array fields from repeated items', function () {
+    Http::fake([
+        'https://example.com/pegawai/19880101' => Http::response([
+            'data' => [
+                'items' => [
+                    ['id' => 1, 'nama' => 'Budi'],
+                    ['id' => 2, 'nama' => 'Susi'],
+                ],
+                'meta' => ['count' => 2],
+            ],
+        ], 200),
+    ]);
+
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $this->withoutMiddleware()
+        ->actingAs($admin)
+        ->post(route('api-services.inspect'), [
+            'method' => 'GET',
+            'url' => 'https://example.com/pegawai/{{nip}}',
+            'headers' => [],
+            'query_params' => [],
+            'body' => [],
+            'sample_values' => ['nip' => '19880101'],
+        ])
+        ->assertOk()
+        ->assertJsonCount(3, 'fields')
+        ->assertJsonPath('fields.0.path', 'data.id')
+        ->assertJsonPath('fields.1.path', 'data.nama')
+        ->assertJsonPath('fields.2.path', 'data.meta.count');
+});
+
 test('api service runner can call multiple services in one combined request', function () {
     Http::fake([
         'https://example.com/pegawai/*' => Http::response(['data' => ['nama' => 'Budi']], 200),
