@@ -50,3 +50,20 @@ it('extracts pangkat and unit kerja from personal context', function () {
     expect($toAnswer('apa pangkat saya?', $personalContext))->toContain('Pangkat:')
         ->and($toAnswer('apa unit kerja saya?', $personalContext))->toContain('Unit Kerja:');
 });
+
+it('uses gender-aware salutation in greeting based on user data', function () {
+    $controller = makeChatController();
+
+    $withGreeting = function (string $answer, object $user): string {
+        $method = new ReflectionMethod(ChatController::class, 'withGreeting');
+        $method->setAccessible(true);
+
+        return $method->invoke($controller, $answer, $user);
+    };
+
+    $maleUser = (object) ['name' => 'Budi Santoso', 'nip' => '199901012024011001', 'jk' => 'L'];
+    $femaleUser = (object) ['name' => 'Sari Wulandari', 'nip' => '199901012024011002', 'jk' => 'P'];
+
+    expect($withGreeting('Data BUP Anda.', $maleUser))->toContain('Bapak Budi Santoso')
+        ->and($withGreeting('Data BUP Anda.', $femaleUser))->toContain('Ibu Sari Wulandari');
+});

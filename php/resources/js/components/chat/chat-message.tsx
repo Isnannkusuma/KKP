@@ -13,11 +13,14 @@ interface ChatMessageProps {
 function isBangkomResponse(content: string): boolean {
     const normalized = content.toLowerCase().replace(/[_()-]/g, ' ');
 
-    return normalized.includes('detail bangkom')
-        || normalized.includes('detail pengembangan kompetensi bangkom')
+    const hasBangkomStructure = normalized.includes('detail pengembangan kompetensi')
         || normalized.includes('rekomendasi bangkom')
-        || normalized.includes('rekomendasi bangkom :')
-        || (normalized.includes('bangkom') && normalized.includes('rekomendasi'))
+        || normalized.includes('rekomendasi pengembangan kompetensi')
+        || normalized.includes('berikut rekomendasi')
+        || normalized.includes('detail bangkom')
+        || (normalized.includes('bangkom') && (normalized.includes('rekomendasi') || normalized.includes('aspek') || normalized.includes('nilai') || normalized.includes('gap')));
+
+    return hasBangkomStructure && !normalized.includes('baik, bagaimana') && !normalized.includes('ada yang bisa saya bantu');
 }
 
 function parseBangkomData(content: string) {
@@ -306,6 +309,14 @@ function renderBangkomMessage(content: string) {
     );
 }
 
+function isCasualGreeting(content: string): boolean {
+    const normalized = content.toLowerCase().replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    return /^(halo|hallo|hai|hi|hello|selamat (pagi|siang|sore|malam|datang)|good morning|good afternoon|good evening)/.test(normalized)
+        || /^(baik|halo|hallo)\s*,?\s*(bagaimana|ada yang bisa saya bantu|apakah ada yang bisa saya jelaskan)/.test(normalized)
+        || /(baik|halo|hallo)\s*,?\s*bagaimana.*(bisa saya bantu|dapat saya bantu|bisa saya jelaskan)/.test(normalized);
+}
+
 function isMappingResponse(content: string): boolean {
     const normalized = content.toLowerCase().replace(/[_()-]/g, ' ');
 
@@ -313,7 +324,20 @@ function isMappingResponse(content: string): boolean {
         return false;
     }
 
-    return normalized.includes('hasil pemetaan kinerja dan talenta');
+    const hasMappingSummary = normalized.includes('hasil pemetaan kinerja dan talenta')
+        || normalized.includes('berikut hasil pemetaan')
+        || normalized.includes('hasil pemetaan')
+        || normalized.includes('data pemetaan')
+        || normalized.includes('pemetaan pegawai dan talenta')
+        || normalized.includes('pemetaan kinerja');
+
+    const hasMappingFieldSignals = normalized.includes('box kuadran')
+        || normalized.includes('nilai talent')
+        || normalized.includes('sumbu x')
+        || normalized.includes('sumbu y')
+        || normalized.includes('total sumbu');
+
+    return (hasMappingSummary || hasMappingFieldSignals) && !normalized.includes('baik, bagaimana') && !normalized.includes('ada yang bisa saya bantu');
 }
 
 function toNumber(value: string | undefined): number {
@@ -584,20 +608,16 @@ function isPersonalProfileResponse(content: string): boolean {
             normalized.includes('unit kerja:')
             || normalized.includes('jabatan:')
             || normalized.includes('pangkat:')
+            || normalized.includes('jenis kelamin:')
         );
 
-    const hasDirectPersonalQuery = normalized.includes('data kepegawaian')
-        || normalized.includes('data pribadi')
-        || normalized.includes('data diri')
-        || normalized.includes('data pegawai')
-        || normalized.includes('data saya')
-        || normalized.includes('profil saya')
-        || normalized.includes('informasi terkait saya')
-        || normalized.includes('pangkat saya')
-        || normalized.includes('jabatan saya')
-        || normalized.includes('unit kerja saya');
+    const hasStructuredSummary = normalized.includes('berikut informasi data kepegawaian')
+        || normalized.includes('berikut informasi data pribadi')
+        || normalized.includes('berikut informasi data diri')
+        || normalized.includes('data kepegawaian anda yang tersedia')
+        || normalized.includes('data pribadi anda yang tersedia');
 
-    return !isMappingResponse(content) && (hasProfileSignals || hasDirectPersonalQuery);
+    return !isMappingResponse(content) && !isBangkomResponse(content) && hasProfileSignals && (hasStructuredSummary || normalized.includes('sumber data:'));
 }
 
 function parsePersonalProfileData(content: string) {
@@ -660,6 +680,7 @@ function parsePersonalProfileData(content: string) {
     const unitKerja = getDataValue('Unit Kerja', 'Unit Organisasi', 'Unit Kerja Saat Ini') || '—';
     const tempatTanggalLahir = getDataValue('Tempat / Tgl Lahir', 'Tempat, Tanggal Lahir', 'Tempat Tanggal Lahir', 'Tempat Lahir', 'Tanggal Lahir') || '—';
     const jenisKelamin = getDataValue('Jenis Kelamin', 'Kelamin') || '—';
+    const salutation = jenisKelamin.toLowerCase().includes('perempuan') || jenisKelamin.toLowerCase().includes('wanita') || jenisKelamin === 'P' ? 'Ibu' : 'Bapak';
     const agama = getDataValue('Agama') || '—';
     const statusPerkawinan = getDataValue('Status Perkawinan', 'Status Kawin', 'Status Nikah') || '—';
     const tmtCpns = getDataValue('TMT CPNS', 'Tmt CPNS') || '—';
@@ -692,6 +713,8 @@ function parsePersonalProfileData(content: string) {
         lamaJabatan,
         masaKerja,
         pendidikanTerakhir,
+        jenisKelamin,
+        salutation,
         badges,
         infoCards,
     };
@@ -811,6 +834,7 @@ function PersonalProfileCard({ profile }: { profile: ReturnType<typeof parsePers
                         .toUpperCase() || 'P'}
                 </div>
                 <div className="min-w-0 flex-1">
+                    <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Selamat datang {profile.salutation}</div>
                     <div className="text-lg font-bold uppercase tracking-tight text-slate-800">{profile.name}</div>
                     <div className="text-[11px] text-slate-600">
                         NIP: {profile.nip}
@@ -875,7 +899,11 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                         ? 'bg-card text-card-foreground border border-border rounded-tl-sm' 
                         : 'bg-primary text-primary-foreground rounded-tr-sm'
                 }`}>
-                    {isAi && isPersonalProfileResponse(message.content) ? (
+                    {isAi && isCasualGreeting(message.content) ? (
+                        <p className="whitespace-pre-wrap leading-relaxed wrap-break-words">
+                            {message.content}
+                        </p>
+                    ) : isAi && isPersonalProfileResponse(message.content) ? (
                         renderPersonalProfile(message.content)
                     ) : isAi && isBangkomResponse(message.content) ? (
                         renderBangkomMessage(message.content)

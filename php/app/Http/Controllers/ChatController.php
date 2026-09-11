@@ -123,6 +123,14 @@ class ChatController extends Controller
             */
 
             $userModel = $request->user();
+
+            if ($this->isCasualGreeting($userMessage)) {
+                return response()->json([
+                    'answer' => $this->humanGreetingReply($request->user()),
+                    'sources' => [],
+                ]);
+            }
+
             $personalContext = $this->buildPersonalContext($userMessage, $userModel);
             $isBangkomRequest = $this->isBangkomSummaryQuestion($userMessage);
 
@@ -140,14 +148,14 @@ class ChatController extends Controller
                             $combinedAnswer = $this->personalContextToAnswer($combinedContext, $sanitizedMessage);
 
                             return response()->json([
-                                'answer' => $this->withGreeting($bangkomAnswer . "\n\n" . $combinedAnswer),
+                                'answer' => $this->withGreeting($bangkomAnswer . "\n\n" . $combinedAnswer, $request->user()),
                                 'sources' => [],
                             ]);
                         }
                     }
 
                     return response()->json([
-                        'answer' => $this->withGreeting($bangkomAnswer),
+                        'answer' => $this->withGreeting($bangkomAnswer, $request->user()),
                         'sources' => [],
                     ]);
                 }
@@ -155,7 +163,7 @@ class ChatController extends Controller
 
             if ($this->shouldReturnPersonalDataDirectly($userMessage) && !empty($personalContext)) {
                 return response()->json([
-                    'answer' => $this->withGreeting($this->personalContextToAnswer($personalContext, $userMessage)),
+                    'answer' => $this->withGreeting($this->personalContextToAnswer($personalContext, $userMessage), $request->user()),
                     'sources' => [],
                 ]);
             }
@@ -242,7 +250,7 @@ class ChatController extends Controller
             if (empty($validContextParts) && empty($personalContext)) {
 
                 return response()->json([
-                    'answer' => $this->withGreeting($this->outOfScopeMessage),
+                    'answer' => $this->withGreeting($this->outOfScopeMessage, $request->user()),
                     'sources' => [],
                 ]);
             }
@@ -438,7 +446,7 @@ class ChatController extends Controller
                     $isOutOfScope = str_contains($answer, 'di luar lingkup layanan Asisten AI ini');
 
                     return response()->json([
-                        'answer' => $this->withGreeting($answer),
+                        'answer' => $this->withGreeting($answer, $request->user()),
                         'sources' => $isOutOfScope ? [] : $sources,
                     ]);
                 }
@@ -502,7 +510,7 @@ class ChatController extends Controller
                             $isOutOfScope = str_contains($groqAnswer, 'di luar lingkup layanan Asisten AI ini');
 
                             return response()->json([
-                                'answer' => $this->withGreeting($groqAnswer),
+                                'answer' => $this->withGreeting($groqAnswer, $request->user()),
                                 'sources' => $isOutOfScope ? [] : $sources,
                             ]);
                         }
@@ -526,7 +534,7 @@ class ChatController extends Controller
             }
 
             return response()->json([
-                'answer' => $this->withGreeting('Gagal menghubungi layanan AI. Silakan coba lagi nanti.'),
+                'answer' => $this->withGreeting('Gagal menghubungi layanan AI. Silakan coba lagi nanti.', $request->user()),
                 'sources' => [],
             ], 500);
 
@@ -538,7 +546,7 @@ class ChatController extends Controller
             ]);
 
             return response()->json([
-                'answer' => $this->withGreeting('Terjadi kesalahan sistem. Silakan coba lagi.'),
+                'answer' => $this->withGreeting('Terjadi kesalahan sistem. Silakan coba lagi.', $request->user()),
                 'sources' => [],
             ], 500);
         }
@@ -701,6 +709,7 @@ class ChatController extends Controller
             . "Sumber data: {$sumberData}\n"
             . "Nama: " . ($pegawaiData['nama'] ?? '') . "\n"
             . "NIP: " . ($pegawaiData['nip'] ?? $user->nip) . "\n"
+            . "Jenis Kelamin: " . ($this->normalizeGenderLabel($pegawaiData['jk'] ?? $pegawaiData['jenis_kelamin'] ?? '')) . "\n"
             . "Jabatan: " . ($pegawaiData['jabatan_nama'] ?? '') . "\n"
             . "Lama Jabatan: {$lamaJabatan}\n"
             . "Pangkat: " . ($pegawaiData['pangkat'] ?? '') . "\n"
@@ -1282,7 +1291,26 @@ class ChatController extends Controller
                 || str_contains($normalizedMessage, 'ibu'));
     }
 
-    protected function withGreeting(string $answer): string
+    protected function isCasualGreeting(string $message): bool
+    {
+        $normalized = mb_strtolower(trim((string) $message));
+        $normalized = preg_replace('/\s+/', ' ', $normalized) ?? $normalized;
+
+        return preg_match('/^(halo|hallo|hai|hi|hello|selamat (pagi|siang|sore|malam|datang)|good morning|good afternoon|good evening)\b/i', $normalized) === 1
+            || preg_match('/^(baik|baik,?|halo|hallo)\s*,?\s*(bagaimana|ada yang bisa saya bantu|apakah ada yang bisa saya jelaskan|apakah ada yang bisa saya bantu\?)/i', $normalized) === 1;
+    }
+
+    protected function humanGreetingReply($user = null): string
+    {
+        $greeting = $this->resolveGreetingData($user);
+        $recipient = $greeting['name'] !== 'pegawai'
+            ? ($greeting['salutation'] . ' ' . $greeting['name'])
+            : $greeting['salutation'];
+
+        return "Baik, bagaimana {$recipient}? Apakah ada yang bisa saya bantu?";
+    }
+
+    protected function withGreeting(string $answer, $user = null): string
     {
         $clean = trim((string) $answer);
 
@@ -1290,11 +1318,62 @@ class ChatController extends Controller
             return $clean;
         }
 
-        if (preg_match('/^(Selamat\s+(datang|pagi|siang|sore|malam)|Halo)/i', $clean) === 1) {
+        if ($this->isCasualGreeting($clean) || preg_match('/^(Selamat\s+(datang|pagi|siang|sore|malam)|Halo)/i', $clean) === 1) {
             return $clean;
         }
 
-        return "Selamat datang Bapak/Ibu. Berikut informasinya:\n\n" . $clean;
+        $greeting = $this->resolveGreetingData($user);
+
+        return "Selamat datang {$greeting['salutation']} {$greeting['name']}. Berikut informasinya:\n\n" . $clean;
+    }
+
+    protected function resolveGreetingData($user = null): array
+    {
+        $name = null;
+        $gender = null;
+
+        if ($user) {
+            $name = $user->name ?? $user->nama ?? null;
+            $gender = $user->jk ?? $user->jenis_kelamin ?? null;
+        }
+
+        if (($name === null || trim((string) $name) === '') && !empty($user?->nip)) {
+            $pegawai = Pegawai::where('nip', $user->nip)->first();
+            $name = $pegawai?->nama ?? null;
+            $gender = $pegawai?->jk ?? $gender;
+        }
+
+        $normalizedName = trim((string) ($name ?? ''));
+        $normalizedGender = strtoupper((string) ($gender ?? ''));
+
+        $isFemale = str_contains($normalizedGender, 'P')
+            || str_contains($normalizedGender, 'PEREMPUAN')
+            || str_contains($normalizedGender, 'WANITA')
+            || $normalizedGender === '2';
+
+        return [
+            'salutation' => $isFemale ? 'Ibu' : 'Bapak',
+            'name' => $normalizedName !== '' ? $normalizedName : 'pegawai',
+        ];
+    }
+
+    protected function normalizeGenderLabel($value): string
+    {
+        $normalized = strtoupper((string) $value);
+
+        if ($normalized === '' || $normalized === 'NULL') {
+            return '-';
+        }
+
+        if (in_array($normalized, ['L', 'LAKI-LAKI', 'LAKI LAKI', 'MALE', 'M'], true)) {
+            return 'Laki-laki';
+        }
+
+        if (in_array($normalized, ['P', 'PEREMPUAN', 'WANITA', 'FEMALE', 'W'], true)) {
+            return 'Perempuan';
+        }
+
+        return $value;
     }
 
     protected function sanitizeAiAnswer(string $answer): string
