@@ -61,14 +61,29 @@ function parseBangkomData(content: string) {
     };
 
     const recommendations: Array<{ aspek: string; nilai: string; gap: string; pelatihan: string[]; kegiatan: string[]; mandiri: string }> = [];
-    const recommendationPrefix = 'Rekomendasi Bangkom:';
-    const startIndex = lines.findIndex((line) => line.startsWith(recommendationPrefix));
+    const startIndex = lines.findIndex((line) => line.startsWith('Detail Pengembangan Kompetensi (bangkom):') || /^Rekomendasi Bangkom \d+:$/i.test(line));
 
     if (startIndex !== -1) {
         let current: { aspek: string; nilai: string; gap: string; pelatihan: string[]; kegiatan: string[]; mandiri: string } | null = null;
 
         for (let i = startIndex + 1; i < lines.length; i++) {
             const line = lines[i];
+
+            if (/^Rekomendasi Bangkom \d+:$/i.test(line)) {
+                if (current) {
+                    recommendations.push(current);
+                }
+
+                current = {
+                    aspek: '',
+                    nilai: '',
+                    gap: '',
+                    pelatihan: [],
+                    kegiatan: [],
+                    mandiri: '',
+                };
+                continue;
+            }
 
             if (line.startsWith('- ')) {
                 const match = line.match(/-\s*(.+?):\s*nilai=(.*?),\s*gap=(.*)$/i);
@@ -94,23 +109,38 @@ function parseBangkomData(content: string) {
                 continue;
             }
 
-            if (line.startsWith('Rekomendasi Pelatihan:')) {
-                current.pelatihan = line.replace('Rekomendasi Pelatihan:', '').split(';').map((item) => item.trim()).filter(Boolean);
+            if (line.startsWith('- Aspek:')) {
+                current.aspek = line.replace('- Aspek:', '').trim();
                 continue;
             }
 
-            if (line.startsWith('Penunjang Lainnya:')) {
-                current.pelatihan = [...current.pelatihan, ...line.replace('Penunjang Lainnya:', '').split(';').map((item) => item.trim()).filter(Boolean)];
+            if (line.startsWith('- Nilai:')) {
+                current.nilai = line.replace('- Nilai:', '').trim();
                 continue;
             }
 
-            if (line.startsWith('Bentuk Kegiatan Non-Klasikal:')) {
-                current.kegiatan = line.replace('Bentuk Kegiatan Non-Klasikal:', '').split(';').map((item) => item.trim()).filter(Boolean);
+            if (line.startsWith('- Gap:')) {
+                current.gap = line.replace('- Gap:', '').trim();
                 continue;
             }
 
-            if (line.startsWith('Mandiri:')) {
-                current.mandiri = line.replace('Mandiri:', '').trim();
+            if (line.startsWith('Rekomendasi Pelatihan:') || line.startsWith('- Rekomendasi Pelatihan:')) {
+                current.pelatihan = line.replace(/^-?\s*Rekomendasi Pelatihan:/, '').split(';').map((item) => item.trim()).filter(Boolean);
+                continue;
+            }
+
+            if (line.startsWith('Penunjang Lainnya:') || line.startsWith('- Penunjang Lainnya:')) {
+                current.pelatihan = [...current.pelatihan, ...line.replace(/^-?\s*Penunjang Lainnya:/, '').split(';').map((item) => item.trim()).filter(Boolean)];
+                continue;
+            }
+
+            if (line.startsWith('Bentuk Kegiatan Non-Klasikal:') || line.startsWith('- Bentuk Kegiatan Non-Klasikal:')) {
+                current.kegiatan = line.replace(/^-?\s*Bentuk Kegiatan Non-Klasikal:/, '').split(';').map((item) => item.trim()).filter(Boolean);
+                continue;
+            }
+
+            if (line.startsWith('Mandiri:') || line.startsWith('- Mandiri:')) {
+                current.mandiri = line.replace(/^-?\s*Mandiri:/, '').trim();
                 continue;
             }
 
@@ -322,6 +352,10 @@ function isMappingResponse(content: string): boolean {
 
     if (isBangkomResponse(content)) {
         return false;
+    }
+
+    if (normalized.includes('hasil pemetaan kinerja dan talenta')) {
+        return true;
     }
 
     const hasMappingSummary = normalized.includes('hasil pemetaan kinerja dan talenta')
@@ -602,6 +636,14 @@ function renderMappingProfile(content: string) {
 function isPersonalProfileResponse(content: string): boolean {
     const normalized = content.toLowerCase().replace(/[_()-]/g, ' ');
 
+    const hasPersonalSummaryMarker = normalized.includes('berikut informasi data kepegawaian anda yang tersedia')
+        || normalized.includes('berikut informasi data pribadi anda yang tersedia')
+        || normalized.includes('berikut informasi data diri anda yang tersedia');
+
+    if (hasPersonalSummaryMarker) {
+        return true;
+    }
+
     const hasProfileSignals = normalized.includes('nama:')
         && normalized.includes('nip:')
         && (
@@ -680,7 +722,11 @@ function parsePersonalProfileData(content: string) {
     const unitKerja = getDataValue('Unit Kerja', 'Unit Organisasi', 'Unit Kerja Saat Ini') || '—';
     const tempatTanggalLahir = getDataValue('Tempat / Tgl Lahir', 'Tempat, Tanggal Lahir', 'Tempat Tanggal Lahir', 'Tempat Lahir', 'Tanggal Lahir') || '—';
     const jenisKelamin = getDataValue('Jenis Kelamin', 'Kelamin') || '—';
-    const salutation = jenisKelamin.toLowerCase().includes('perempuan') || jenisKelamin.toLowerCase().includes('wanita') || jenisKelamin === 'P' ? 'Ibu' : 'Bapak';
+    const jenisKelaminNormalized = String(jenisKelamin ?? '').trim().toLowerCase();
+    const salutation = jenisKelaminNormalized.includes('perempuan')
+        || jenisKelaminNormalized.includes('wanita')
+        || String(jenisKelamin ?? '').trim() === 'P'
+        ? 'Ibu' : 'Bapak';
     const agama = getDataValue('Agama') || '—';
     const statusPerkawinan = getDataValue('Status Perkawinan', 'Status Kawin', 'Status Nikah') || '—';
     const tmtCpns = getDataValue('TMT CPNS', 'Tmt CPNS') || '—';
@@ -885,10 +931,10 @@ export default function ChatMessage({ message }: ChatMessageProps) {
     const isAi = message.role === 'assistant';
 
     return (
-        <div className={`flex gap-4 mb-6 ${isAi ? '' : 'flex-row-reverse'}`}>
+        <div className={`mb-5 flex gap-3 ${isAi ? '' : 'flex-row-reverse'}`}>
 
             <div className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center ${
-                isAi ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                isAi ? 'bg-[#edf3f8] text-[#3471ac] shadow-sm' : 'bg-[#f5f6f8] text-[#65809b] shadow-sm'
             }`}>
                 {isAi ? <Bot className="h-5 w-5" /> : <User className="h-5 w-5" />}
             </div>
@@ -896,8 +942,8 @@ export default function ChatMessage({ message }: ChatMessageProps) {
             <div className={`flex flex-col max-w-[85%] ${isAi ? 'items-start' : 'items-end'}`}>
                 <div className={`rounded-2xl px-4 py-3 text-sm shadow-sm ${
                     isAi 
-                        ? 'bg-card text-card-foreground border border-border rounded-tl-sm' 
-                        : 'bg-primary text-primary-foreground rounded-tr-sm'
+                        ? 'border border-white/35 bg-[#eff5fb] text-[#245ac0] rounded-tl-sm'
+                        : 'border border-white/45 bg-[#f5f6f8] text-[#245ac0] rounded-tr-sm'
                 }`}>
                     {isAi && isCasualGreeting(message.content) ? (
                         <p className="whitespace-pre-wrap leading-relaxed wrap-break-words">
@@ -916,8 +962,8 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                     )}
 
                     {isAi && message.sources && message.sources.length > 0 && (
-                        <div className="mt-4 pt-3 border-t border-border/50">
-                            <p className="mb-2 gap-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center">
+                        <div className="mt-4 border-t border-blue-200/70 pt-3">
+                            <p className="mb-2 flex gap-1 text-[10px] font-semibold uppercase tracking-wider text-[#5177ad]">
                                 <FileText className="h-3 w-3" />
                                 Sumber Referensi
                             </p>
@@ -932,13 +978,13 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                                     return (
                                         <div 
                                             key={idx} 
-                                            className="gap-2 p-2 text-xs bg-background/50 rounded-md border border-border/50 flex items-center hover:bg-accent/50 transition-colors"
+                                            className="flex gap-2 rounded-md border border-blue-100 bg-blue-50/70 p-2 text-xs transition-colors hover:bg-blue-100"
                                         >
-                                            <span className="flex-1 font-medium text-foreground truncate" title={safeFilename}>
+                                            <span className="flex-1 truncate font-medium text-[#1956a5]" title={safeFilename}>
                                                 {safeFilename}
                                             </span>
                                             
-                                            <span className="px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground bg-muted rounded whitespace-nowrap">
+                                            <span className="whitespace-nowrap rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-[#5177ad]">
                                                  {(safeScore * 100).toFixed(1)}% match
                                             </span>
                                         </div>
@@ -949,8 +995,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                     )}
                 </div>
                 
-                {/* Timestamp (Opsional) */}
-                <span className="mt-1 px-1 text-[10px] text-muted-foreground">
+                <span className={`mt-1 px-1 text-[10px] ${isAi ? 'text-white/55' : 'text-white/65'}`}>
                     {new Date(message.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                 </span>
             </div>

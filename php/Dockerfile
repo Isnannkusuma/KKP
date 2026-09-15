@@ -27,6 +27,8 @@ RUN docker-php-ext-install pdo pdo_pgsql pdo_mysql mbstring exif pcntl bcmath gd
     && pecl install redis \
     && docker-php-ext-enable redis
 
+RUN printf 'upload_max_filesize=50M\npost_max_size=55M\n' > /usr/local/etc/php/conf.d/uploads.ini
+
 # ============================================
 # 3. Install Composer
 # ============================================
@@ -66,6 +68,9 @@ RUN chown -R www-data:www-data storage bootstrap/cache \
 EXPOSE 8000 5173
 
 # ============================================
-# 9. Jalankan Supervisor
+# 9. Jalankan Entry Script
 # ============================================
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+CMD ["/usr/local/bin/entrypoint.sh"]

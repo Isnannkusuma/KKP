@@ -1,14 +1,13 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ApiServiceController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DocumentController;
-use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\PegawaiController;
-use App\Http\Controllers\ApiServiceController;
+use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'welcome')->name('home');
-
+Route::redirect('/', '/chat')->name('home');
 
 /*
 |--------------------------------------------------------------------------
@@ -16,20 +15,19 @@ Route::inertia('/', 'welcome')->name('home');
 |--------------------------------------------------------------------------
 */
 
+// ==========================================
+// CHATBOT AI
+// Dapat diakses tanpa login untuk pertanyaan umum berdasarkan dokumen RAG.
+// Pertanyaan yang menyangkut data pribadi/NIP tetap memerlukan login.
+// ==========================================
+Route::get('/chat', [ChatController::class, 'index'])
+    ->name('chat.index');
+
+Route::post('/chat/process', [ChatController::class, 'process'])
+    ->name('chat.process')
+    ->middleware('throttle:20,1');
+
 Route::middleware('auth')->group(function () {
-
-    // ==========================================
-    // CHATBOT AI
-    // Admin maupun user biasa bisa mengakses
-    // ==========================================
-
-    Route::get('/chat', [ChatController::class, 'index'])
-        ->name('chat.index');
-
-    Route::post('/chat/process', [ChatController::class, 'process'])
-        ->name('chat.process')
-        ->middleware('throttle:20,1');
-
 
     // ==========================================
     // DATA PEGAWAI
@@ -37,7 +35,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/pegawai/me', [PegawaiController::class, 'me'])
         ->name('pegawai.me');
-
 
     // ==========================================
     // ADMIN ONLY
@@ -69,7 +66,6 @@ Route::middleware('auth')->group(function () {
 
         Route::delete('/dokumen/{document}', [DocumentController::class, 'destroy'])
             ->name('dokumen.destroy');
-
 
         // Kategori
         Route::get('/kategori', [CategoryController::class, 'index'])
@@ -105,5 +101,4 @@ Route::middleware('auth')->group(function () {
     });
 });
 
-
-require __DIR__ . '/settings.php';
+require __DIR__.'/settings.php';

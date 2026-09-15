@@ -9,15 +9,16 @@ use Illuminate\Support\Facades\Log;
 class BangkomPegawaiService
 {
     protected string $baseUrl;
+
     protected string $token;
 
     public function __construct()
     {
         $this->baseUrl = rtrim(
-            env('BANGKOM_API_KEY', env('BANGKOM_API_BASE_URL', '')),
+            (string) config('services.bangkom_pegawai.base_url', ''),
             '/'
         );
-        $this->token = env('BANGKOM_API_TOKEN', '');
+        $this->token = (string) config('services.bangkom_pegawai.token', '');
     }
 
     /**
@@ -32,21 +33,29 @@ class BangkomPegawaiService
             return null;
         }
 
-        $result = Cache::remember(
-            'bangkom-pegawai:' . $nip,
-            now()->addMinutes(5),
-            fn (): array => ['data' => $this->requestBangkomByNip($nip)]
-        );
+        $cacheKey = 'bangkom-pegawai:'.$nip;
 
-        return $result['data'];
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }
+
+        $data = $this->requestBangkomByNip($nip);
+
+        if ($data !== null) {
+            Cache::put($cacheKey, $data, now()->addMinutes(5));
+        }
+
+        return $data;
     }
 
     private function requestBangkomByNip(string $nip): ?array
     {
         try {
-            $request = Http::timeout(10);
+            $request = Http::connectTimeout(5)
+                ->timeout(10)
+                ->retry(2, 300, throw: false);
 
-            if (!empty($this->token)) {
+            if (! empty($this->token)) {
                 $request = $request->withHeaders([
                     'Authorization' => $this->token,
                 ]);
@@ -56,7 +65,7 @@ class BangkomPegawaiService
                 ->asJson()
                 ->get($this->endpointUrl($nip));
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::warning('Bangkom Pegawai: request data gagal', [
                     'nip' => $nip,
                     'status' => $response->status(),
@@ -67,7 +76,7 @@ class BangkomPegawaiService
 
             $payload = $response->json();
 
-            if (!is_array($payload) || ($payload['success'] ?? true) !== true) {
+            if (! is_array($payload) || ($payload['success'] ?? true) !== true) {
                 Log::warning('Bangkom Pegawai: payload tidak valid atau success=false', [
                     'nip' => $nip,
                     'payload' => $payload,
@@ -99,9 +108,9 @@ class BangkomPegawaiService
     private function endpointUrl(string $nip): string
     {
         if (str_contains($this->baseUrl, '?nip=')) {
-            return $this->baseUrl . rawurlencode($nip);
+            return $this->baseUrl.rawurlencode($nip);
         }
 
-        return $this->baseUrl . '/' . rawurlencode($nip) . '/';
+        return $this->baseUrl.'/'.rawurlencode($nip).'/';
     }
 }

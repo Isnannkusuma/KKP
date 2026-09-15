@@ -35,4 +35,23 @@ return [
         ],
     ],
 
+    'portal_pegawai' => [
+        'base_url' => env('PORTAL_API_BASE_URL', ''),
+        'token' => env('PORTAL_API_TOKEN', ''),
+    ],
+
+    'pemetaan_pegawai' => [
+        'base_url' => env('PEMETAAN_API_KEY', env('PEMETAAN_API_BASE_URL', '')),
+        'token' => env('PEMETAAN_API_TOKEN', ''),
+    ],
+
+    'bangkom_pegawai' => [
+        'base_url' => env('BANGKOM_API_KEY', env('BANGKOM_API_BASE_URL', '')),
+        'token' => env('BANGKOM_API_TOKEN', ''),
+    ],
+
+    'python_ai' => [
+        'base_url' => env('PYTHON_AI_URL', 'http://localhost:8000'),
+    ],
+
 ];

@@ -6,19 +6,19 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-
 class PemetaanPegawaiService
 {
     protected string $baseUrl;
+
     protected string $token;
 
     public function __construct()
     {
         $this->baseUrl = rtrim(
-            env('PEMETAAN_API_KEY', env('PEMETAAN_API_BASE_URL', '')),
+            (string) config('services.pemetaan_pegawai.base_url', ''),
             '/'
         );
-        $this->token = env('PEMETAAN_API_TOKEN', '');
+        $this->token = (string) config('services.pemetaan_pegawai.token', '');
     }
 
     /**
@@ -29,24 +29,33 @@ class PemetaanPegawaiService
     {
         if (empty($this->baseUrl)) {
             Log::warning('Pemetaan Pegawai: endpoint belum diisi di .env');
+
             return null;
         }
 
-        $result = Cache::remember(
-            'pemetaan-pegawai:' . $nip,
-            now()->addMinutes(5),
-            fn (): array => ['data' => $this->requestPegawaiByNip($nip)]
-        );
+        $cacheKey = 'pemetaan-pegawai:'.$nip;
 
-        return $result['data'];
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }
+
+        $data = $this->requestPegawaiByNip($nip);
+
+        if ($data !== null) {
+            Cache::put($cacheKey, $data, now()->addMinutes(5));
+        }
+
+        return $data;
     }
 
     private function requestPegawaiByNip(string $nip): ?array
     {
         try {
-            $request = Http::timeout(10);
+            $request = Http::connectTimeout(5)
+                ->timeout(10)
+                ->retry(2, 300, throw: false);
 
-            if (!empty($this->token)) {
+            if (! empty($this->token)) {
                 $request = $request->withHeaders([
                     'Authorization' => $this->token,
                 ]);
@@ -56,7 +65,7 @@ class PemetaanPegawaiService
                 ->asJson()
                 ->get($this->endpointUrl($nip));
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::warning('Pemetaan Pegawai: request data gagal', [
                     'nip' => $nip,
                     'status' => $response->status(),
@@ -67,7 +76,7 @@ class PemetaanPegawaiService
 
             $payload = $response->json();
 
-            if (!is_array($payload) || ($payload['success'] ?? true) !== true) {
+            if (! is_array($payload) || ($payload['success'] ?? true) !== true) {
                 return null;
             }
 
@@ -87,9 +96,9 @@ class PemetaanPegawaiService
     private function endpointUrl(string $nip): string
     {
         if (str_contains($this->baseUrl, '?nip=')) {
-            return $this->baseUrl . rawurlencode($nip);
+            return $this->baseUrl.rawurlencode($nip);
         }
 
-        return $this->baseUrl . '/' . rawurlencode($nip) . '/';
+        return $this->baseUrl.'/'.rawurlencode($nip).'/';
     }
 }

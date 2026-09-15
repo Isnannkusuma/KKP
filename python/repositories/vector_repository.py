@@ -36,14 +36,7 @@ class VectorRepository:
                 password=settings.DB_PASSWORD
             )
             
-            # ✅ PENTING: Daftarkan custom codec untuk tipe vector
-            async with self.pool.acquire() as conn:
-                await conn.set_type_codec(
-                    'vector',
-                    encoder=self._encode_vector,
-                    decoder=self._decode_vector,
-                    schema='public'
-                )
+           
             
             logger.info("db_pool_established_with_vector_codec")
         except Exception as e:

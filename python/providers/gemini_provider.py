@@ -8,7 +8,6 @@ class GeminiProvider(TextCleanerProvider):
         self.client = httpx.AsyncClient(timeout=60.0)
         self.api_key = settings.GEMINI_API_KEY
         self.url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={self.api_key}"
-
     async def clean(self, text: str) -> str:
         system_prompt = """
         Kamu adalah mesin perbaikan teks OCR tingkat tinggi untuk dokumen resmi pemerintah Indonesia. 

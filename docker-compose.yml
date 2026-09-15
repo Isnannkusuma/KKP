@@ -1,5 +1,6 @@
 # version: '3.8'
 
+
 services:
   db:
     image: pgvector/pgvector:pg16
@@ -7,12 +8,10 @@ services:
       POSTGRES_DB: ${DB_DATABASE}
       POSTGRES_USER: ${DB_USERNAME}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
-      - app-network
+      - csai-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
       interval: 5s
@@ -20,7 +19,8 @@ services:
       retries: 5
     deploy:
       resources:
-        limits: { memory: 1G }
+        limits:
+          memory: 1G
 
   db-pegawai:
     image: mysql:8.0
@@ -28,15 +28,23 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${PEGAWAI_DB_ROOT_PASSWORD}
       MYSQL_DATABASE: ${PEGAWAI_DB_DATABASE:-siantar}
-    ports:
-      - "${PEGAWAI_DB_PORT:-3307}:3306"
     volumes:
       - pegawaidata:/var/lib/mysql
       - ./m_peg.sql:/docker-entrypoint-initdb.d/m_peg.sql
     networks:
-      - app-network
+      - csai-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${PEGAWAI_DB_ROOT_PASSWORD}"]
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-p${PEGAWAI_DB_ROOT_PASSWORD}"
+        ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -44,18 +52,16 @@ services:
       resources:
         limits:
           memory: 1G
-          cpus: '1.0'
+          cpus: "1.0"
         reservations:
           memory: 256M
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redisdata:/data
     networks:
-      - app-network
+      - csai-network
     command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -65,30 +71,28 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M      # Redis tidak butuh banyak
-          cpus: '0.5'
+          memory: 256M
+          cpus: "0.5"
         reservations:
           memory: 128M
-    
 
   laravel:
     build:
-      context: ./php             
-      dockerfile: Dockerfile     
-    ports:
-      - "${APP_PORT:-8080}:8000"  
-      - "${VITE_PORT:-5173}:5173" 
+      context: ./php
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
     env_file:
-      - ./php/.env                
+      - ./php/.env
     environment:
-      - DB_HOST=db
-      - REDIS_HOST=redis
-      - PYTHON_AI_URL=http://python-ai:8000
-      - PEGAWAI_DB_HOST=db-pegawai
-      - PEGAWAI_DB_PORT=3306
-      - PEGAWAI_DB_DATABASE=${PEGAWAI_DB_DATABASE:-siantar}
-      - PEGAWAI_DB_USERNAME=root
-      - PEGAWAI_DB_PASSWORD=${PEGAWAI_DB_ROOT_PASSWORD}
+      DB_HOST: db
+      REDIS_HOST: redis
+      PYTHON_AI_URL: http://python-ai:8000
+      PEGAWAI_DB_HOST: db-pegawai
+      PEGAWAI_DB_PORT: 3306
+      PEGAWAI_DB_DATABASE: ${PEGAWAI_DB_DATABASE:-siantar}
+      PEGAWAI_DB_USERNAME: root
+      PEGAWAI_DB_PASSWORD: ${PEGAWAI_DB_ROOT_PASSWORD}
     volumes:
       - ./php:/var/www/html
       - /var/www/html/node_modules
@@ -102,53 +106,62 @@ services:
       db-pegawai:
         condition: service_healthy
     networks:
-      - app-network
-    # ✅ BATASI MEMORY DI SINI
+      - csai-network
+      - proxy-network
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=proxy-network
+      - traefik.http.routers.csai.rule=Host(`csai.sdmao-kkp.online`) || Host(`ai.sdmao-kkp.online`)
+      - traefik.http.routers.csai.entrypoints=websecure
+      - traefik.http.routers.csai.tls=true
+      - traefik.http.routers.csai.tls.certresolver=letsencrypt
+      - traefik.http.routers.csai.middlewares=security-headers@file
+      - traefik.http.services.csai.loadbalancer.server.port=8000
     deploy:
       resources:
         limits:
-          memory: 4G        # Maksimal 1 GB RAM. 
-          cpus: '4.0'       # Maksimal 1 CPU core
+          memory: 4G
+          cpus: "4.0"
         reservations:
-          memory: 512M      # Minimal 512 MB (guaranteed
+          memory: 512M
 
   python-ai:
     build:
-      context: ./python          
-      dockerfile: Dockerfile   
-    ports:
-      - "${PYTHON_PORT:-8001}:8000"
+      context: ./python
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
     env_file:
-      - ./python/.env           
+      - ./python/.env
     environment:
-      - DB_HOST=db
-      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-      - PYTORCH_NVML_BASED_CUDA_CHECK=0
+      DB_HOST: db
+      PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+      PYTORCH_NVML_BASED_CUDA_CHECK: "0"
     volumes:
       - ./python:/app
     depends_on:
       db:
         condition: service_healthy
     networks:
-      - app-network
-    deploy:
-          resources:
-            limits:
-              memory: 4G        # Maksimal 6 GB
-              cpus: '4.0'       # Maksimal 4 CPU core
-            reservations:
-              memory: 1.5G      # Minimal 1.5 GB
-              # GPU reservation dihapus - Mac tidak punya GPU NVIDIA / device passthrough
-              # Kalau nanti deploy ke server Linux dengan GPU NVIDIA + NVIDIA Container Toolkit,
-              # bisa diaktifkan lagi dengan menambahkan blok "devices" di sini.
+      - csai-network
     command: gunicorn main:app -w 1 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 300
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "4.0"
+        reservations:
+          memory: 1.5G
 
-    
 volumes:
-  pgdata:    
+  pgdata:
   redisdata:
   pegawaidata:
 
 networks:
-  app-network:
+  csai-network:
     driver: bridge
+
+  proxy-network:
+    external: true
+    name: proxy-network

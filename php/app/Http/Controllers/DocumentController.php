@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Document;
+use App\Jobs\ProcessDocumentIngest;
 use App\Models\Category;
-use App\Jobs\ProcessDocumentIngest; // ← Import Job baru
+use App\Models\Document; // ← Import Job baru
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -14,7 +14,20 @@ class DocumentController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Document::with('category');
+        $query = Document::query()
+            ->select([
+                'id',
+                'name',
+                'file_type',
+                'file_size',
+                'category_id',
+                'access_level',
+                'status',
+                'error_message',
+                'total_chunks',
+                'created_at',
+            ])
+            ->with('category:id,name');
 
         if ($request->filled('category_id')) {
             $query->where('category_id', $request->category_id);
@@ -25,11 +38,13 @@ class DocumentController extends Controller
         }
 
         if ($request->filled('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%');
+            $query->where('name', 'like', '%'.$request->search.'%');
         }
 
         $documents = $query->latest()->paginate(10);
-        $categories = Category::all();
+        $categories = Category::query()
+            ->select(['id', 'name', 'slug'])
+            ->get();
 
         $stats = [
             'total' => Document::count(),
@@ -56,7 +71,7 @@ class DocumentController extends Controller
 
         try {
             $file = $request->file('document');
-            $fileName = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+            $fileName = time().'_'.preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
             $path = $file->storeAs('documents', $fileName, 'public');
 
             $document = Document::create([
@@ -83,7 +98,7 @@ class DocumentController extends Controller
             }
 
             return back()->withErrors([
-                'document' => 'Gagal mengunggah file: ' . $e->getMessage()
+                'document' => 'Gagal mengunggah file: '.$e->getMessage(),
             ]);
         }
     }
@@ -113,7 +128,7 @@ class DocumentController extends Controller
                     Storage::disk('public')->delete($document->file_path);
                 }
 
-                $fileName = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+                $fileName = time().'_'.preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
                 $path = $file->storeAs('documents', $fileName, 'public');
 
                 $document->name = $file->getClientOriginalName();
@@ -138,7 +153,7 @@ class DocumentController extends Controller
                 ->with('success', $isFileChanged ? 'Dokumen diperbarui dan sedang diproses ulang.' : 'Metadata dokumen berhasil diperbarui.');
         } catch (\Exception $e) {
             return back()->withErrors([
-                'error' => 'Gagal memperbarui dokumen: ' . $e->getMessage()
+                'error' => 'Gagal memperbarui dokumen: '.$e->getMessage(),
             ]);
         }
     }
@@ -167,7 +182,7 @@ class DocumentController extends Controller
                 ->with('success', 'Dokumen dan seluruh data vektornya berhasil dihapus.');
         } catch (\Exception $e) {
             return back()->withErrors([
-                'error' => 'Gagal menghapus dokumen: ' . $e->getMessage()
+                'error' => 'Gagal menghapus dokumen: '.$e->getMessage(),
             ]);
         }
     }
@@ -176,7 +191,7 @@ class DocumentController extends Controller
     {
         if ($document->status !== 'failed') {
             return back()->withErrors([
-                'error' => 'Hanya dokumen yang gagal diproses yang bisa di-retry.'
+                'error' => 'Hanya dokumen yang gagal diproses yang bisa di-retry.',
             ]);
         }
 
@@ -193,14 +208,14 @@ class DocumentController extends Controller
                 ->with('success', 'Dokumen sedang diproses ulang di background.');
         } catch (\Exception $e) {
             return back()->withErrors([
-                'error' => 'Gagal memulai ulang proses: ' . $e->getMessage()
+                'error' => 'Gagal memulai ulang proses: '.$e->getMessage(),
             ]);
         }
     }
 
     public function download(Document $document)
     {
-        if (!Storage::disk('public')->exists($document->file_path)) {
+        if (! Storage::disk('public')->exists($document->file_path)) {
             abort(404, 'File tidak ditemukan.');
         }
 

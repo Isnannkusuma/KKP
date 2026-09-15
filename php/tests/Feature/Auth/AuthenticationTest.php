@@ -10,16 +10,28 @@ test('login screen can be rendered', function () {
     $response->assertOk();
 });
 
-test('users can authenticate using the login screen', function () {
-    $user = User::factory()->create();
+test('admin users are redirected to the dashboard after login', function () {
+    $user = User::factory()->create(['role' => 'admin']);
 
     $response = $this->post(route('login.store'), [
-        'email' => $user->email,
+        'nip' => $user->nip,
         'password' => 'password',
     ]);
 
     $this->assertAuthenticated();
     $response->assertRedirect(route('dashboard', absolute: false));
+});
+
+test('regular users are redirected to the chatbot after login', function () {
+    $user = User::factory()->create(['role' => 'user']);
+
+    $response = $this->post(route('login.store'), [
+        'nip' => $user->nip,
+        'password' => 'password',
+    ]);
+
+    $this->assertAuthenticated();
+    $response->assertRedirect(route('chat.index', absolute: false));
 });
 
 test('users with two factor enabled are redirected to two factor challenge', function () {

@@ -1,5 +1,4 @@
-import { Sparkles, FileSearch, HelpCircle, Scale } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { FileSearch, HelpCircle, Scale } from 'lucide-react';
 
 interface WelcomeScreenProps {
     onSuggestionClick: (message: string) => void;
@@ -28,26 +27,24 @@ export default function WelcomeScreen({ onSuggestionClick }: WelcomeScreenProps)
     ];
 
     return (
-        <div className="flex-col px-4 justify-center h-full min-h-[400px] text-center flex items-center">
-            <div className="mb-4 h-16 w-16 rounded-2xl bg-primary/10 justify-center flex items-center">
-                <Sparkles className="h-8 w-8 text-primary" />
-            </div>
-            <h2 className="mb-2 text-2xl font-bold tracking-tight">Selamat Datang di Asisten AI Layanan Biro SDMAO</h2>
-            <p className="mb-8 text-muted-foreground max-w-md">
+        <div className="flex min-h-[360px] flex-col items-center justify-center px-4 text-center">
+            <h2 className="mb-2 text-xl font-semibold text-white">Ada yang dapat saya bantu?</h2>
+            <p className="mb-8 max-w-md text-sm text-white/70">
                 Saya siap membantu Anda menemukan informasi terkait layanan, regulasi, dan prosedur instansi berdasarkan dokumen resmi.
             </p>
             
-            <div className="grid gap-3 w-full max-w-2xl sm:grid-cols-3">
+            <div className="grid w-full max-w-2xl gap-3 sm:grid-cols-3">
                 {suggestions.map((item, index) => (
-                    <Card 
+                    <button
+                        type="button"
                         key={index} 
-                        className="p-4 text-left border-border/50 cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
+                        className="cursor-pointer rounded-xl border border-white/15 bg-white/10 p-4 text-left transition-colors hover:bg-white/20"
                         onClick={() => onSuggestionClick(item.query)}
                     >
                         <div className="mb-2">{item.icon}</div>
-                        <h3 className="mb-1 font-semibold text-sm">{item.title}</h3>
-                        <p className="text-xs text-muted-foreground">{item.desc}</p>
-                    </Card>
+                        <h3 className="mb-1 text-sm font-semibold text-white">{item.title}</h3>
+                        <p className="text-xs text-white/65">{item.desc}</p>
+                    </button>
                 ))}
             </div>
         </div>

@@ -15,6 +15,7 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
+use Laravel\Fortify\Contracts\LoginResponse;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
 
@@ -25,7 +26,19 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(LoginResponse::class, function (): LoginResponse {
+            return new class implements LoginResponse
+            {
+                public function toResponse($request)
+                {
+                    return redirect()->intended(
+                        $request->user()->role === 'admin'
+                            ? route('dashboard')
+                            : route('chat.index')
+                    );
+                }
+            };
+        });
     }
 
     /**
@@ -76,16 +89,16 @@ class FortifyServiceProvider extends ServiceProvider
              * Legacy fallback: password default adalah NIP untuk user yang belum
              * mempunyai akun Laravel atau masih memakai pola lama.
              */
-            if (!$user && $password !== $nip) {
+            if (! $user && $password !== $nip) {
                 return null;
             }
 
             $portalData = null;
 
-            if (!$pegawai) {
+            if (! $pegawai) {
                 $portalData = app(PortalPegawaiService::class)->getPegawaiByNip($nip);
 
-                if (!$portalData) {
+                if (! $portalData) {
                     Log::warning('Login pegawai gagal: NIP tidak ditemukan lokal maupun portal', [
                         'nip' => $nip,
                         'portal_api_called' => true,
@@ -114,11 +127,11 @@ class FortifyServiceProvider extends ServiceProvider
              * Jika belum mempunyai akun Laravel,
              * buat akun secara otomatis.
              */
-            if (!$user) {
+            if (! $user) {
                 $user = User::create([
                     'name' => $pegawaiData['nama'] ?? 'Pegawai',
                     'nip' => $pegawaiData['nip'] ?? $nip,
-                    'email' => $nip . '@pegawai.local',
+                    'email' => $nip.'@pegawai.local',
                     'password' => Hash::make($nip),
                     'role' => 'user',
                 ]);
@@ -182,7 +195,7 @@ class FortifyServiceProvider extends ServiceProvider
             $throttleKey = Str::transliterate(
                 Str::lower(
                     $request->input(Fortify::username())
-                ) . '|' . $request->ip()
+                ).'|'.$request->ip()
             );
 
             return Limit::perMinute(5)->by($throttleKey);

@@ -9,12 +9,13 @@ use Illuminate\Support\Facades\Log;
 class PortalPegawaiService
 {
     protected string $baseUrl;
+
     protected string $token;
 
     public function __construct()
     {
-        $this->baseUrl = rtrim(env('PORTAL_API_BASE_URL', ''), '/');
-        $this->token = env('PORTAL_API_TOKEN', '');
+        $this->baseUrl = rtrim((string) config('services.portal_pegawai.base_url', ''), '/');
+        $this->token = (string) config('services.portal_pegawai.token', '');
     }
 
     /**
@@ -25,16 +26,23 @@ class PortalPegawaiService
     {
         if (empty($this->token)) {
             Log::warning('Portal Pegawai: PORTAL_API_TOKEN belum diisi di .env');
+
             return null;
         }
 
-        $result = Cache::remember(
-            'portal-pegawai:' . $nip,
-            now()->addMinutes(5),
-            fn (): array => ['data' => $this->requestPegawaiByNip($nip)]
-        );
+        $cacheKey = 'portal-pegawai:'.$nip;
 
-        return $result['data'];
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }
+
+        $data = $this->requestPegawaiByNip($nip);
+
+        if ($data !== null) {
+            Cache::put($cacheKey, $data, now()->addMinutes(5));
+        }
+
+        return $data;
     }
 
     private function requestPegawaiByNip(string $nip): ?array
@@ -45,14 +53,16 @@ class PortalPegawaiService
                 'endpoint' => $this->endpointUrl($nip),
             ]);
 
-            $response = Http::timeout(10)
+            $response = Http::connectTimeout(5)
+                ->timeout(10)
+                ->retry(2, 300, throw: false)
                 ->withHeaders([
                     'Authorization' => $this->token,
                 ])
                 ->asJson()
                 ->get($this->endpointUrl($nip));
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::warning('Portal Pegawai: request data gagal', [
                     'nip' => $nip,
                     'status' => $response->status(),
@@ -64,7 +74,7 @@ class PortalPegawaiService
             $data = $response->json();
             $records = $data['result'] ?? $data['data'] ?? $data;
 
-            if (!is_array($records)) {
+            if (! is_array($records)) {
                 return null;
             }
 
@@ -102,12 +112,13 @@ class PortalPegawaiService
                 'nip' => $nip,
                 'message' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
 
     private function endpointUrl(string $nip): string
     {
-        return $this->baseUrl . '/' . rawurlencode($nip) . '/';
+        return $this->baseUrl.'/'.rawurlencode($nip).'/';
     }
 }
