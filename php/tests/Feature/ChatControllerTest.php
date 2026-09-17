@@ -279,7 +279,7 @@ test('talent mapping questions resolve from the pemetaan service before the gene
     });
 });
 
-test('bangkom questions do not short-circuit to personal data before the bangkom context is used', function () {
+test('bangkom questions return personal recommendations without calling Gemini when RAG has results', function () {
     putenv('BANGKOM_API_KEY=http://bangkom.test');
     putenv('BANGKOM_API_TOKEN=token');
 
@@ -290,7 +290,11 @@ test('bangkom questions do not short-circuit to personal data before the bangkom
     ]);
 
     Http::fake([
-        'http://localhost:8000/search' => Http::response(['results' => []], 200),
+        'http://localhost:8000/search' => Http::response(['results' => [[
+            'hybrid_score' => 0.9,
+            'content' => 'Konteks dokumen umum.',
+            'document_id' => 999999,
+        ]]], 200),
         'http://bangkom.test/*' => Http::response([
             'success' => true,
             'data' => [
@@ -303,14 +307,6 @@ test('bangkom questions do not short-circuit to personal data before the bangkom
                 ]],
             ],
         ], 200),
-        'https://generativelanguage.googleapis.com/*' => Http::response([
-            'candidates' => [[
-                'content' => [
-                    'parts' => [['text' => 'Berikut rekomendasi bangkom Anda.']],
-                ],
-                'finishReason' => 'STOP',
-            ]],
-        ], 200),
     ]);
 
     $response = $this->actingAs($user)
@@ -320,12 +316,11 @@ test('bangkom questions do not short-circuit to personal data before the bangkom
         ]);
 
     $response->assertOk();
+    expect($response->json('answer'))->toContain('Rekomendasi Bangkom 1');
+    expect($response->json('answer'))->toContain('Pelatihan Komunikasi');
 
-    Http::assertSent(function ($request) {
-        $text = $request['contents'][0]['parts'][0]['text'] ?? '';
-
-        return str_contains($text, 'Detail Pengembangan Kompetensi (bangkom):')
-            || str_contains($text, 'Rekomendasi Bangkom:');
+    Http::assertNotSent(function ($request) {
+        return str_starts_with($request->url(), 'https://generativelanguage.googleapis.com/');
     });
 });
 

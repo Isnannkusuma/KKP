@@ -111,7 +111,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=proxy-network
-      - traefik.http.routers.csai.rule=Host(`csai.sdmao-kkp.online`) || Host(`ai.sdmao-kkp.online`)
+      - traefik.http.routers.csai.rule=Host(`csai.sdmao-kkp.online`) || Host(`ai.sdmao-kkp.online`) || Host(`csai.sdmao.id`)
       - traefik.http.routers.csai.entrypoints=websecure
       - traefik.http.routers.csai.tls=true
       - traefik.http.routers.csai.tls.certresolver=letsencrypt
@@ -148,7 +148,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 4G
+          memory: 8G
           cpus: "4.0"
         reservations:
           memory: 1.5G

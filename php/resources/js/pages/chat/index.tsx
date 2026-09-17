@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import ChatInput from '@/components/chat/chat-input';
 import ChatMessage from '@/components/chat/chat-message';
 import WelcomeScreen from '@/components/chat/welcome-screen';
+import type { ChatSuggestion } from '@/components/chat/welcome-screen';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { login, logout } from '@/routes';
@@ -34,6 +35,20 @@ export default function Chat({ user }: ChatProps) {
 
     const handleLogout = () => {
         router.flushAll();
+    };
+
+    const handleSuggestionClick = (suggestion: ChatSuggestion) => {
+        if (suggestion.requiresLogin && !user) {
+            setLoginPrompt({
+                open: true,
+                message: 'Masuk terlebih dahulu untuk mendapatkan rekomendasi pengembangan kompetensi (Bangkom) yang sesuai dengan data kepegawaian Anda.',
+                redirectTo: '/login',
+            });
+
+            return;
+        }
+
+        void handleSendMessage(suggestion.query);
     };
 
     const handleSendMessage = async (content: string) => {
@@ -94,6 +109,7 @@ export default function Chat({ user }: ChatProps) {
                     role: 'assistant',
                     content: data.answer,
                     sources: data.sources || [],
+                    auditId: data.audit_id || null,
                     created_at: new Date().toISOString(),
                 };
                 setMessages((prev) => [...prev, aiMsg]);
@@ -104,6 +120,24 @@ export default function Chat({ user }: ChatProps) {
             setMessages((prev) => prev.filter(m => m.id !== userMsg.id));
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleFeedback = async (messageId: string, auditId: string, feedback: 'positive' | 'negative') => {
+        setMessages((current) => current.map((message) => message.id === messageId ? { ...message, feedback } : message));
+
+        try {
+            await fetch(`/chat/audits/${auditId}/feedback`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({ feedback }),
+            });
+        } catch (error) {
+            console.error('Feedback error:', error);
         }
     };
 
@@ -201,11 +235,11 @@ export default function Chat({ user }: ChatProps) {
                             <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-5">
                                 <div className="mx-auto max-w-3xl py-2">
                         {messages.length === 0 ? (
-                            <WelcomeScreen onSuggestionClick={handleSendMessage} />
+                            <WelcomeScreen onSuggestionClick={handleSuggestionClick} />
                         ) : (
                             <>
                                 {messages.map((msg) => (
-                                    <ChatMessage key={msg.id} message={msg} />
+                                    <ChatMessage key={msg.id} message={msg} onFeedback={handleFeedback} />
                                 ))}
 
                                 {isLoading && (

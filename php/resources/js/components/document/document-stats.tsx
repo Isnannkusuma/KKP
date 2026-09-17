@@ -1,5 +1,6 @@
 import { FileText, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GLASS_CARD } from '@/lib/glass-theme';
 import type { DocumentStats as StatsType } from '@/types';
 
 interface DocumentStatsProps {
@@ -11,8 +12,8 @@ export default function DocumentStats({ stats }: DocumentStatsProps) {
         {
             title: 'Total Dokumen',
             value: stats.total,
-            icon: <FileText className="h-5 w-5 text-muted-foreground" />,
-            color: 'text-foreground',
+            icon: <FileText className="h-5 w-5 text-black" />,
+            color: 'text-black',
             description: 'Seluruh dokumen terdaftar',
         },
         {
@@ -41,9 +42,9 @@ export default function DocumentStats({ stats }: DocumentStatsProps) {
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {cards.map((card, index) => (
-                <Card key={index} className="transition-all hover:shadow-md">
+                <Card key={index} className={`${GLASS_CARD} transition-all hover:shadow-md`}>
                     <CardHeader className="flex-row pb-2 justify-between flex items-center space-y-0">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                        <CardTitle className="text-sm font-medium text-slate-500">
                             {card.title}
                         </CardTitle>
                         {card.icon}
@@ -52,7 +53,7 @@ export default function DocumentStats({ stats }: DocumentStatsProps) {
                         <div className={`text-3xl font-bold tracking-tight ${card.color}`}>
                             {card.value.toLocaleString('id-ID')}
                         </div>
-                        <p className="mt-1 text-xs text-muted-foreground">
+                        <p className="mt-1 text-xs text-slate-400">
                             {card.description}
                         </p>
                     </CardContent>

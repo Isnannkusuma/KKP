@@ -1,28 +1,34 @@
 import { FileSearch, HelpCircle, Scale } from 'lucide-react';
 
+export interface ChatSuggestion {
+    query: string;
+    requiresLogin?: boolean;
+}
+
 interface WelcomeScreenProps {
-    onSuggestionClick: (message: string) => void;
+    onSuggestionClick: (suggestion: ChatSuggestion) => void;
 }
 
 export default function WelcomeScreen({ onSuggestionClick }: WelcomeScreenProps) {
     const suggestions = [
         {
             icon: <FileSearch className="h-5 w-5 text-blue-500" />,
-            title: "Cara Pengajuan",
-            desc: "Bagaimana syarat dan prosedur pengajuan layanan baru?",
-            query: "Bagaimana syarat dan prosedur pengajuan layanan baru?"
+            title: "Rekomendasi Bangkom Saya",
+            desc: "Apa rekomendasi Bangkom yang sesuai untuk saya?",
+            query: "Berikan rekomendasi Bangkom saya berdasarkan data kepegawaian saya.",
+            requiresLogin: true,
         },
         {
             icon: <Scale className="h-5 w-5 text-purple-500" />,
-            title: "Dasar Hukum",
-            desc: "Apa dasar hukum dari kebijakan terbaru ini?",
-            query: "Apa dasar hukum dari kebijakan terbaru ini?"
+            title: "Login Aplikasi Sianter",
+            desc: "Bagaimana cara login di Aplikasi Sianter?",
+            query: "Bagaimana cara login di Aplikasi Sianter?"
         },
         {
             icon: <HelpCircle className="h-5 w-5 text-orange-500" />,
-            title: "Troubleshooting",
-            desc: "Mengapa pengajuan saya ditolak?",
-            query: "Apa saja alasan umum pengajuan layanan ditolak?"
+            title: "Pengajuan Cuti",
+            desc: "Bagaimana cara pengajuan cuti?",
+            query: "Bagaimana cara pengajuan cuti?"
         }
     ];
 
@@ -39,7 +45,7 @@ export default function WelcomeScreen({ onSuggestionClick }: WelcomeScreenProps)
                         type="button"
                         key={index} 
                         className="cursor-pointer rounded-xl border border-white/15 bg-white/10 p-4 text-left transition-colors hover:bg-white/20"
-                        onClick={() => onSuggestionClick(item.query)}
+                        onClick={() => onSuggestionClick(item)}
                     >
                         <div className="mb-2">{item.icon}</div>
                         <h3 className="mb-1 text-sm font-semibold text-white">{item.title}</h3>

@@ -3,6 +3,7 @@
 use App\Http\Controllers\ApiServiceController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\PegawaiController;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +28,10 @@ Route::post('/chat/process', [ChatController::class, 'process'])
     ->name('chat.process')
     ->middleware('throttle:20,1');
 
+Route::post('/chat/audits/{auditLog}/feedback', [ChatController::class, 'feedback'])
+    ->name('chat.feedback')
+    ->middleware('throttle:30,1');
+
 Route::middleware('auth')->group(function () {
 
     // ==========================================
@@ -42,8 +47,12 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('role:admin')->group(function () {
 
-        Route::inertia('/dashboard', 'dashboard')
+        Route::get('/dashboard', DashboardController::class)
             ->name('dashboard');
+        Route::get('/dashboard/export', [DashboardController::class, 'export'])
+            ->name('dashboard.export');
+        Route::delete('/dashboard/audits', [DashboardController::class, 'destroy'])
+            ->name('dashboard.audits.destroy');
 
         // Dokumen / RAG
         Route::get('/dokumen', [DocumentController::class, 'index'])

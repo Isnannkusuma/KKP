@@ -1,5 +1,5 @@
 import { Chart, Filler, Legend, LineElement, PointElement, RadarController, RadialLinearScale, Tooltip } from 'chart.js';
-import { Bot, FileText, User } from 'lucide-react';
+import { Bot, FileText, ThumbsDown, ThumbsUp, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { ChatMessage as ChatMessageType } from '@/types';
@@ -8,6 +8,7 @@ Chart.register(RadarController, RadialLinearScale, PointElement, LineElement, Fi
 
 interface ChatMessageProps {
     message: ChatMessageType;
+    onFeedback?: (messageId: string, auditId: string, feedback: 'positive' | 'negative') => void;
 }
 
 function isBangkomResponse(content: string): boolean {
@@ -927,11 +928,11 @@ function renderPersonalProfile(content: string) {
     return <PersonalProfileCard profile={profile} />;
 }
 
-export default function ChatMessage({ message }: ChatMessageProps) {
+export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
     const isAi = message.role === 'assistant';
 
     return (
-        <div className={`mb-5 flex gap-3 ${isAi ? '' : 'flex-row-reverse'}`}>
+        <div className={`mb-5 flex min-w-0 gap-3 ${isAi ? '' : 'flex-row-reverse'}`}>
 
             <div className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center ${
                 isAi ? 'bg-[#edf3f8] text-[#3471ac] shadow-sm' : 'bg-[#f5f6f8] text-[#65809b] shadow-sm'
@@ -939,8 +940,8 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                 {isAi ? <Bot className="h-5 w-5" /> : <User className="h-5 w-5" />}
             </div>
 
-            <div className={`flex flex-col max-w-[85%] ${isAi ? 'items-start' : 'items-end'}`}>
-                <div className={`rounded-2xl px-4 py-3 text-sm shadow-sm ${
+            <div className={`flex min-w-0 max-w-[85%] flex-col ${isAi ? 'items-start' : 'items-end'}`}>
+                <div className={`min-w-0 w-full rounded-2xl px-4 py-3 text-sm shadow-sm ${
                     isAi 
                         ? 'border border-white/35 bg-[#eff5fb] text-[#245ac0] rounded-tl-sm'
                         : 'border border-white/45 bg-[#f5f6f8] text-[#245ac0] rounded-tr-sm'
@@ -994,10 +995,16 @@ export default function ChatMessage({ message }: ChatMessageProps) {
                         </div>
                     )}
                 </div>
-                
-                <span className={`mt-1 px-1 text-[10px] ${isAi ? 'text-white/55' : 'text-white/65'}`}>
-                    {new Date(message.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                </span>
+
+                <div className={`mt-1 flex items-center gap-1 px-1 ${isAi ? 'text-white/55' : 'text-white/65'}`}>
+                    <span className="mr-1 text-[10px]">{new Date(message.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+                    {isAi && message.auditId && onFeedback && (
+                        <>
+                            <button type="button" aria-label="Jawaban membantu" title="Jawaban membantu" onClick={() => onFeedback(message.id, message.auditId!, 'positive')} className={`grid size-6 place-items-center rounded-md transition ${message.feedback === 'positive' ? 'bg-emerald-400/25 text-emerald-200' : 'hover:bg-white/15 hover:text-white'}`}><ThumbsUp className="size-3.5" /></button>
+                            <button type="button" aria-label="Jawaban tidak membantu" title="Jawaban tidak membantu" onClick={() => onFeedback(message.id, message.auditId!, 'negative')} className={`grid size-6 place-items-center rounded-md transition ${message.feedback === 'negative' ? 'bg-rose-400/25 text-rose-200' : 'hover:bg-white/15 hover:text-white'}`}><ThumbsDown className="size-3.5" /></button>
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );

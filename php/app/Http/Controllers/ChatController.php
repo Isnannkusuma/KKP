@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\ApiService;
 use App\Models\Document;
 use App\Models\Pegawai;
+use App\Models\SearchAuditLog;
 use App\Services\ApiServiceRunner;
 use App\Services\BangkomPegawaiService;
 use App\Services\PemetaanPegawaiService;
 use App\Services\PortalPegawaiService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -83,12 +85,19 @@ class ChatController extends Controller
         $userMessage = (string) $request->input('message', '');
 
         if (! $user && $this->requiresLoginForPersonalData($userMessage)) {
-            return response()->json([
-                'answer' => 'Untuk pertanyaan terkait data pribadi atau NIP, silakan login terlebih dahulu.',
+            $response = $this->chatResponse(
+                $request,
+                $userMessage,
+                'Untuk pertanyaan terkait data pribadi atau NIP, silakan login terlebih dahulu.',
+                [],
+                'unanswered',
+            );
+
+            return $response->setData([
+                ...$response->getData(true),
                 'require_login' => true,
                 'redirect_to' => route('login'),
-                'sources' => [],
-            ], 200);
+            ]);
         }
 
         $timerStart = microtime(true);
@@ -122,11 +131,7 @@ class ChatController extends Controller
             $userModel = $request->user();
 
             if ($this->isCasualGreeting($userMessage)) {
-                return response()->json([
-                    'answer' => $this->humanGreetingReply($userModel),
-                    'sources' => [],
-                    'require_login' => false,
-                ]);
+                return $this->chatResponse($request, $userMessage, $this->humanGreetingReply($userModel), []);
             }
 
             $isBangkomRequest = $this->isBangkomSummaryQuestion($userMessage);
@@ -227,18 +232,16 @@ class ChatController extends Controller
 
             $combinedApiContext = $this->buildCombinedApiContext($userMessage, $userModel);
 
+            if ($userModel && $isBangkomRequest && $deferredPersonalAnswer !== null) {
+                return $this->chatResponse($request, $userMessage, $deferredPersonalAnswer, []);
+            }
+
             if ($userModel && empty($validContextParts) && $deferredPersonalAnswer !== null) {
-                return response()->json([
-                    'answer' => $this->withGreeting($deferredPersonalAnswer, $userModel),
-                    'sources' => [],
-                ]);
+                return $this->chatResponse($request, $userMessage, $deferredPersonalAnswer, []);
             }
 
             if ($userModel && empty($validContextParts) && $this->shouldReturnPersonalDataDirectly($userMessage) && ! empty($personalContext)) {
-                return response()->json([
-                    'answer' => $this->withGreeting($this->personalContextToAnswer($personalContext, $userMessage), $userModel),
-                    'sources' => [],
-                ]);
+                return $this->chatResponse($request, $userMessage, $this->personalContextToAnswer($personalContext, $userMessage), []);
             }
 
             /*
@@ -249,11 +252,7 @@ class ChatController extends Controller
             */
 
             if (empty($validContextParts) && empty($personalContext)) {
-
-                return response()->json([
-                    'answer' => $this->withGreeting($this->outOfScopeMessage, $request->user()),
-                    'sources' => [],
-                ]);
+                return $this->chatResponse($request, $userMessage, $this->outOfScopeMessage, [], 'unanswered');
             }
 
             $contextSections = [];
@@ -454,10 +453,13 @@ class ChatController extends Controller
                     // daftar sumber dokumen karena memang tidak dipakai.
                     $isOutOfScope = str_contains($answer, 'di luar lingkup layanan Asisten AI ini');
 
-                    return response()->json([
-                        'answer' => $this->withGreeting($answer, $request->user()),
-                        'sources' => $isOutOfScope ? [] : $sources,
-                    ]);
+                    return $this->chatResponse(
+                        $request,
+                        $userMessage,
+                        $answer,
+                        $isOutOfScope ? [] : $sources,
+                        $isOutOfScope ? 'unanswered' : 'answered',
+                    );
                 }
 
                 Log::warning('Struktur JSON Gemini tidak berisi jawaban: menjalankan fallback Groq', [
@@ -518,10 +520,13 @@ class ChatController extends Controller
                         if ($groqAnswer !== '') {
                             $isOutOfScope = str_contains($groqAnswer, 'di luar lingkup layanan Asisten AI ini');
 
-                            return response()->json([
-                                'answer' => $this->withGreeting($groqAnswer, $request->user()),
-                                'sources' => $isOutOfScope ? [] : $sources,
-                            ]);
+                            return $this->chatResponse(
+                                $request,
+                                $userMessage,
+                                $groqAnswer,
+                                $isOutOfScope ? [] : $sources,
+                                $isOutOfScope ? 'unanswered' : 'answered',
+                            );
                         }
                     }
 
@@ -542,10 +547,16 @@ class ChatController extends Controller
                 Log::error('GROQ_API_KEY belum diisi: fallback tidak tersedia');
             }
 
-            return response()->json([
-                'answer' => $this->withGreeting('Gagal menghubungi layanan AI. Silakan coba lagi nanti.', $request->user()),
-                'sources' => [],
-            ], 500);
+            if (! empty($validContextParts)) {
+                Log::warning('Provider AI tidak tersedia: mengembalikan konteks dokumen RAG', [
+                    'query' => $userMessage,
+                    'source_count' => count($sources),
+                ]);
+
+                return $this->chatResponse($request, $userMessage, $this->documentContextFallback($validContextParts), $sources);
+            }
+
+            return $this->chatResponse($request, $userMessage, 'Gagal menghubungi layanan AI. Silakan coba lagi nanti.', [], 'error', 500);
 
         } catch (\Exception $e) {
 
@@ -554,11 +565,54 @@ class ChatController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return response()->json([
-                'answer' => $this->withGreeting('Terjadi kesalahan sistem. Silakan coba lagi.', $request->user()),
-                'sources' => [],
-            ], 500);
+            return $this->chatResponse($request, $userMessage, 'Terjadi kesalahan sistem. Silakan coba lagi.', [], 'error', 500);
         }
+    }
+
+    public function feedback(Request $request, SearchAuditLog $auditLog): JsonResponse
+    {
+        $validated = $request->validate([
+            'feedback' => 'required|in:positive,negative',
+        ]);
+
+        $auditLog->update([
+            'feedback' => $validated['feedback'],
+            'feedback_at' => now(),
+        ]);
+
+        return response()->json(['feedback' => $auditLog->feedback]);
+    }
+
+    protected function chatResponse(Request $request, string $question, string $answer, array $sources, string $status = 'answered', int $httpStatus = 200): JsonResponse
+    {
+        $auditId = null;
+
+        try {
+            $user = $request->user();
+
+            $audit = SearchAuditLog::create([
+                'user_type' => $user ? 'authenticated' : 'guest',
+                'user_identifier' => $user?->id ?? $request->ip() ?? 'unknown',
+                'user_name' => $user?->name,
+                'query' => $question,
+                'answer' => $answer,
+                'response_status' => $status,
+                'result_count' => count($sources),
+                'result_document_ids' => collect($sources)->pluck('document_id')->values()->all(),
+                'access_level_used' => 'public',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+            $auditId = $audit->id;
+        } catch (\Throwable $exception) {
+            Log::warning('Gagal mencatat audit chatbot', ['message' => $exception->getMessage()]);
+        }
+
+        return response()->json([
+            'answer' => $this->withGreeting($answer, $request->user()),
+            'sources' => $sources,
+            'audit_id' => $auditId,
+        ], $httpStatus);
     }
 
     /**
@@ -569,6 +623,17 @@ class ChatController extends Controller
      * sedang login ($user->nip). User tidak bisa mempengaruhi NIP siapa yang
      * dicari lewat isi pesan chat, sehingga user lain tidak akan pernah terbaca.
      */
+    protected function documentContextFallback(array $contextParts): string
+    {
+        $documentContent = collect($contextParts)
+            ->map(fn (string $context): string => preg_replace('/^SUMBER \d+:\s*/', '', $context) ?? $context)
+            ->filter(fn (string $context): bool => trim($context) !== '')
+            ->implode("\n\n");
+
+        return 'Layanan AI sedang tidak tersedia. Berikut informasi dari dokumen resmi yang relevan:\n\n'
+            .$documentContent;
+    }
+
     protected function requiresLoginForPersonalData(string $message): bool
     {
         $normalizedMessage = mb_strtolower(trim((string) $message));

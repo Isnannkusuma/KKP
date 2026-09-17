@@ -5,6 +5,7 @@ import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PRIMARY_BUTTON } from '@/lib/glass-theme';
 import type { Category } from '@/types';
 
 interface UploadDocumentDialogProps {
@@ -101,7 +102,7 @@ setIsOpen(true);
 } 
 }}>
             <DialogTrigger asChild>
-                <Button><Plus className="h-4 w-4 mr-2" /> Unggah Dokumen</Button>
+                <Button className={PRIMARY_BUTTON}><Plus className="h-4 w-4 mr-2" /> Unggah Dokumen</Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>

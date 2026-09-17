@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { GLASS_CARD } from '@/lib/glass-theme';
 import type { CategoryItem, FiltersCategory, PaginationDataCategory } from '@/types';
 
 interface Props {
@@ -28,10 +29,10 @@ export default function CategoryTable({ categories, pagination, filters, onEdit,
     }, [searchInput]);
 
     return (
-        <Card className="flex-1">
+        <Card className={`flex-1 ${GLASS_CARD}`}>
             <CardHeader>
                 <div className="flex-col gap-4 flex sm:flex-row sm:items-center sm:justify-between">
-                    <CardTitle>Daftar Kategori</CardTitle>
+                    <CardTitle className="text-slate-800">Daftar Kategori</CardTitle>
                     <div className="w-full relative sm:w-64">
                         <Search className="top-2.5 h-4 w-4 text-muted-foreground absolute left-2" />
                         <input

@@ -9,16 +9,17 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { GLASS_CARD } from '@/lib/glass-theme';
 import type { DocumentItem, PaginationData, Filters, Category } from '@/types';
 
 interface DocumentTableProps {
     documents: DocumentItem[];
     pagination: PaginationData;
     filters: Filters;
-    categories: Category[]; // TAMBAH
-    onDeleteClick: (id: string) => void; // UBAH ke string
-    onRetryClick: (id: string) => void; // UBAH ke string
-    onDownloadClick: (id: string) => void; // UBAH ke string
+    categories: Category[]; 
+    onDeleteClick: (id: string) => void; 
+    onRetryClick: (id: string) => void; 
+    onDownloadClick: (id: string) => void; 
 }
 
 export default function DocumentTable({ documents, pagination, filters, categories, onDeleteClick, onRetryClick, onDownloadClick }: DocumentTableProps) {
@@ -69,11 +70,11 @@ return <FileText className="h-5 w-5 text-blue-600 shrink-0" />;
     }, [documents]);
 
     return (
-        <Card className="flex-1">
+        <Card className={`flex-1 ${GLASS_CARD}`}>
             <CardHeader>
                 <div className="flex-col gap-4 flex sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <CardTitle>Daftar Dokumen</CardTitle>
+                        <CardTitle className="text-slate-800">Daftar Dokumen</CardTitle>
                         <CardDescription>Kelola dokumen yang menjadi knowledge base untuk AI Chatbot.</CardDescription>
                     </div>
                     <div className="gap-2 w-full flex sm:w-auto">
@@ -120,7 +121,7 @@ return <FileText className="h-5 w-5 text-blue-600 shrink-0" />;
                                         )}
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant="outline" className="text-xs">
+                                        <Badge variant="outline" className="text-xs text-black">
                                             {doc.category?.name || 'Tidak ada'}
                                         </Badge>
                                     </TableCell>

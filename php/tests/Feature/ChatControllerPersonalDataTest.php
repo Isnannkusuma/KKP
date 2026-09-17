@@ -9,10 +9,10 @@ use App\Services\PortalPegawaiService;
 function makeChatController(): ChatController
 {
     return new ChatController(
-        new PortalPegawaiService(),
-        new PemetaanPegawaiService(),
-        new BangkomPegawaiService(),
-        new ApiServiceRunner(),
+        new PortalPegawaiService,
+        new PemetaanPegawaiService,
+        new BangkomPegawaiService,
+        new ApiServiceRunner,
     );
 }
 
@@ -34,11 +34,11 @@ it('extracts pangkat and unit kerja from personal context', function () {
     $controller = makeChatController();
 
     $personalContext = "DATA PRIBADI PENGGUNA:\n"
-        . "Nama: Budi\n"
-        . "NIP: 199901012024011001\n"
-        . "Jabatan: Penata Muda\n"
-        . "Pangkat: Penata Muda\n"
-        . "Unit Kerja: Kantor Pusat\n";
+        ."Nama: Budi\n"
+        ."NIP: 199901012024011001\n"
+        ."Jabatan: Penata Muda\n"
+        ."Pangkat: Penata Muda\n"
+        ."Unit Kerja: Kantor Pusat\n";
 
     $toAnswer = function (string $message, string $context): string {
         $method = new ReflectionMethod(ChatController::class, 'personalContextToAnswer');
@@ -66,4 +66,18 @@ it('uses gender-aware salutation in greeting based on user data', function () {
 
     expect($withGreeting('Data BUP Anda.', $maleUser))->toContain('Bapak Budi Santoso')
         ->and($withGreeting('Data BUP Anda.', $femaleUser))->toContain('Ibu Sari Wulandari');
+});
+
+it('returns document context when an AI provider is unavailable', function () {
+    $controller = makeChatController();
+    $method = new ReflectionMethod(ChatController::class, 'documentContextFallback');
+    $method->setAccessible(true);
+
+    $answer = $method->invoke($controller, [
+        "SUMBER 1:\nInformasi pengajuan cuti untuk PPPK.",
+    ]);
+
+    expect($answer)->toContain('Layanan AI sedang tidak tersedia.')
+        ->and($answer)->toContain('Informasi pengajuan cuti untuk PPPK.')
+        ->and($answer)->not->toContain('SUMBER 1:');
 });
