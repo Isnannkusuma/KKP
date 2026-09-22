@@ -125,6 +125,44 @@ services:
         reservations:
           memory: 512M
 
+  laravel-scheduler:
+    build:
+      context: ./php
+      dockerfile: Dockerfile
+    command: sh -c "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
+    env_file:
+      - ./php/.env
+    environment:
+      DB_HOST: db
+      REDIS_HOST: redis
+      PYTHON_AI_URL: http://python-ai:8000
+      PEGAWAI_DB_HOST: db-pegawai
+      PEGAWAI_DB_PORT: 3306
+      PEGAWAI_DB_DATABASE: ${PEGAWAI_DB_DATABASE:-siantar}
+      PEGAWAI_DB_USERNAME: root
+      PEGAWAI_DB_PASSWORD: ${PEGAWAI_DB_ROOT_PASSWORD}
+    volumes:
+      - ./php:/var/www/html
+      - /var/www/html/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      python-ai:
+        condition: service_started
+      db-pegawai:
+        condition: service_healthy
+    networks:
+      - csai-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+        reservations:
+          memory: 256M       
+
   python-ai:
     build:
       context: ./python
@@ -165,3 +203,6 @@ networks:
   proxy-network:
     external: true
     name: proxy-network
+
+
+  

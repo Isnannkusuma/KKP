@@ -7,6 +7,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\PegawaiController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\FaqReviewController;
 
 Route::redirect('/', '/chat')->name('home');
 
@@ -107,7 +108,23 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/service-api/{apiService}/test', [ApiServiceController::class, 'test'])
             ->name('api-services.test');
-    });
-});
+
+        // FAQ Review
+        Route::get('/faq-review', [FaqReviewController::class, 'index'])
+            ->name('faq-review.index');
+ 
+        Route::put('/faq-review/{faqEntry}', [FaqReviewController::class, 'update'])
+            ->name('faq-review.update');
+        
+        Route::post('/faq-review/{faqEntry}/approve', [FaqReviewController::class, 'approve'])
+            ->name('faq-review.approve');
+        
+        Route::post('/faq-review/{faqEntry}/reject', [FaqReviewController::class, 'reject'])
+            ->name('faq-review.reject');
+        
+        Route::delete('/faq-review/{faqEntry}', [FaqReviewController::class, 'destroy'])
+            ->name('faq-review.destroy');
+            });
+        });
 
 require __DIR__.'/settings.php';

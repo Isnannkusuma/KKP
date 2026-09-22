@@ -9,7 +9,7 @@ use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Promptable;
 use Stringable;
 
-#[Temperature(0.1)] // Tetap rendah agar tidak berhalusinasi
+#[Temperature(0.5)] // Tetap rendah agar tidak berhalusinasi
 #[TopP(0.8)]
 class ChatbotAgent implements Agent
 {

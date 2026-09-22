@@ -13,6 +13,7 @@ use App\Services\PortalPegawaiService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -51,6 +52,14 @@ class ChatController extends Controller
         .'lain yang berkaitan.';
 
     /**
+     * Ambang cosine distance untuk anggap pertanyaan user "cocok" dengan
+     * salah satu FAQ yang sudah di-approve. Semakin kecil nilainya, semakin
+     * ketat kemiripan yang disyaratkan. Kalau cocok, jawaban FAQ dipakai
+     * langsung tanpa perlu panggil RAG search + LLM (lebih cepat & hemat biaya).
+     */
+    protected float $faqMatchThreshold = 0.15;
+
+    /**
      * Menampilkan halaman chatbot.
      *
      * Hanya user yang sudah login yang dapat
@@ -81,26 +90,18 @@ class ChatController extends Controller
      */
     public function process(Request $request)
     {
-        $user = $request->user();
+        $user = $this->resolveUserModel($request);
         $userMessage = (string) $request->input('message', '');
 
         if (! $user && $this->requiresLoginForPersonalData($userMessage)) {
-            $response = $this->chatResponse(
-                $request,
-                $userMessage,
-                'Untuk pertanyaan terkait data pribadi atau NIP, silakan login terlebih dahulu.',
-                [],
-                'unanswered',
-            );
-
-            return $response->setData([
-                ...$response->getData(true),
-                'require_login' => true,
-                'redirect_to' => route('login'),
-            ]);
+            return $this->loginRequiredResponse($request, $userMessage);
         }
 
         $timerStart = microtime(true);
+
+        // Embedding dari pertanyaan user, diisi setelah panggilan RAG search berhasil.
+        // Dipakai untuk menyimpan query_embedding ke search_audit_logs (dasar clustering FAQ).
+        $queryEmbedding = null;
 
         try {
             $request->validate([
@@ -128,7 +129,7 @@ class ChatController extends Controller
             |--------------------------------------------------------------------------
             */
 
-            $userModel = $request->user();
+            $userModel = $this->resolveUserModel($request);
 
             if ($this->isCasualGreeting($userMessage)) {
                 return $this->chatResponse($request, $userMessage, $this->humanGreetingReply($userModel), []);
@@ -136,6 +137,39 @@ class ChatController extends Controller
 
             $isBangkomRequest = $this->isBangkomSummaryQuestion($userMessage);
             $isMappingRequest = $this->isMappingSummaryQuestion($userMessage);
+
+            /*
+            |--------------------------------------------------------------------------
+            | 1.5 Cek FAQ approved dulu sebelum RAG+LLM (hemat biaya & lebih cepat).
+            | Dilewati untuk pertanyaan yang menyinggung data pribadi, supaya FAQ
+            | generik tidak pernah dipakai menjawab hal yang seharusnya personal.
+            |--------------------------------------------------------------------------
+            */
+
+            $isPersonalRelatedQuery = $isBangkomRequest
+                || $isMappingRequest
+                || $this->shouldReturnPersonalDataDirectly($userMessage)
+                || collect($this->personalDataKeywords)->contains(
+                    fn (string $keyword): bool => str_contains(mb_strtolower($userMessage), $keyword)
+                );
+
+            if (! $isPersonalRelatedQuery) {
+                $earlyEmbedding = $this->embedQuery($userMessage);
+
+                if ($earlyEmbedding !== null) {
+                    $queryEmbedding = $earlyEmbedding;
+                    $faqMatch = $this->findMatchingFaq($earlyEmbedding);
+
+                    if ($faqMatch !== null) {
+                        Log::info('FAQ match ditemukan: menjawab langsung tanpa RAG+LLM', [
+                            'faq_id' => $faqMatch->id,
+                            'distance' => round((float) $faqMatch->distance, 4),
+                        ]);
+
+                        return $this->chatResponse($request, $userMessage, $faqMatch->answer, [], 'answered', 200, $earlyEmbedding);
+                    }
+                }
+            }
 
             $pythonUrl = rtrim(
                 config('services.python_ai.base_url', 'http://localhost:8000'),
@@ -148,10 +182,11 @@ class ChatController extends Controller
                 $searchResponse = Http::connectTimeout(3)
                     ->timeout(8)
                     ->asJson()
-                    ->post($pythonUrl, [
+                    ->post($pythonUrl, array_filter([
                         'query' => $userMessage,
                         'top_k' => 3,
-                    ]);
+                        'query_embedding' => $queryEmbedding,
+                    ]));
             } catch (\Throwable $e) {
                 $searchResponse = null;
 
@@ -169,6 +204,10 @@ class ChatController extends Controller
             if ($searchResponse?->successful()) {
 
                 $results = $searchResponse->json('results', []);
+
+                if ($queryEmbedding === null) {
+                    $queryEmbedding = $searchResponse->json('query_embedding');
+                }
 
                 if (! empty($results)) {
 
@@ -233,15 +272,15 @@ class ChatController extends Controller
             $combinedApiContext = $this->buildCombinedApiContext($userMessage, $userModel);
 
             if ($userModel && $isBangkomRequest && $deferredPersonalAnswer !== null) {
-                return $this->chatResponse($request, $userMessage, $deferredPersonalAnswer, []);
+                return $this->chatResponse($request, $userMessage, $deferredPersonalAnswer, [], 'answered', 200, $queryEmbedding);
             }
 
             if ($userModel && empty($validContextParts) && $deferredPersonalAnswer !== null) {
-                return $this->chatResponse($request, $userMessage, $deferredPersonalAnswer, []);
+                return $this->chatResponse($request, $userMessage, $deferredPersonalAnswer, [], 'answered', 200, $queryEmbedding);
             }
 
             if ($userModel && empty($validContextParts) && $this->shouldReturnPersonalDataDirectly($userMessage) && ! empty($personalContext)) {
-                return $this->chatResponse($request, $userMessage, $this->personalContextToAnswer($personalContext, $userMessage), []);
+                return $this->chatResponse($request, $userMessage, $this->personalContextToAnswer($personalContext, $userMessage), [], 'answered', 200, $queryEmbedding);
             }
 
             /*
@@ -252,7 +291,7 @@ class ChatController extends Controller
             */
 
             if (empty($validContextParts) && empty($personalContext)) {
-                return $this->chatResponse($request, $userMessage, $this->outOfScopeMessage, [], 'unanswered');
+                return $this->chatResponse($request, $userMessage, $this->outOfScopeMessage, [], 'unanswered', 200, $queryEmbedding);
             }
 
             $contextSections = [];
@@ -459,6 +498,8 @@ class ChatController extends Controller
                         $answer,
                         $isOutOfScope ? [] : $sources,
                         $isOutOfScope ? 'unanswered' : 'answered',
+                        200,
+                        $queryEmbedding,
                     );
                 }
 
@@ -526,6 +567,8 @@ class ChatController extends Controller
                                 $groqAnswer,
                                 $isOutOfScope ? [] : $sources,
                                 $isOutOfScope ? 'unanswered' : 'answered',
+                                200,
+                                $queryEmbedding,
                             );
                         }
                     }
@@ -553,10 +596,10 @@ class ChatController extends Controller
                     'source_count' => count($sources),
                 ]);
 
-                return $this->chatResponse($request, $userMessage, $this->documentContextFallback($validContextParts), $sources);
+                return $this->chatResponse($request, $userMessage, $this->documentContextFallback($validContextParts), $sources, 'answered', 200, $queryEmbedding);
             }
 
-            return $this->chatResponse($request, $userMessage, 'Gagal menghubungi layanan AI. Silakan coba lagi nanti.', [], 'error', 500);
+            return $this->chatResponse($request, $userMessage, 'Gagal menghubungi layanan AI. Silakan coba lagi nanti.', [], 'error', 500, $queryEmbedding);
 
         } catch (\Exception $e) {
 
@@ -565,8 +608,42 @@ class ChatController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return $this->chatResponse($request, $userMessage, 'Terjadi kesalahan sistem. Silakan coba lagi.', [], 'error', 500);
+            return $this->chatResponse($request, $userMessage, 'Terjadi kesalahan sistem. Silakan coba lagi.', [], 'error', 500, $queryEmbedding);
         }
+    }
+
+    /**
+     * Menentukan "user" yang sedang berinteraksi dengan chatbot. Default-nya
+     * pakai sesi login Laravel biasa ($request->user()). Di-override oleh
+     * WidgetChatController untuk resolve identitas dari token SSO situs lain.
+     */
+    protected function resolveUserModel(Request $request)
+    {
+        return $request->user();
+    }
+
+    /**
+     * Response yang dikembalikan saat pertanyaan menyinggung data pribadi
+     * tapi user belum teridentifikasi. Default-nya redirect ke halaman login
+     * (untuk chatbot web utama). Di-override oleh WidgetChatController karena
+     * konsep "redirect ke /login" tidak relevan saat chatbot ditanam di iframe
+     * situs lain.
+     */
+    protected function loginRequiredResponse(Request $request, string $userMessage): JsonResponse
+    {
+        $response = $this->chatResponse(
+            $request,
+            $userMessage,
+            'Untuk pertanyaan terkait data pribadi atau NIP, silakan login terlebih dahulu.',
+            [],
+            'unanswered',
+        );
+
+        return $response->setData([
+            ...$response->getData(true),
+            'require_login' => true,
+            'redirect_to' => route('login'),
+        ]);
     }
 
     public function feedback(Request $request, SearchAuditLog $auditLog): JsonResponse
@@ -583,16 +660,16 @@ class ChatController extends Controller
         return response()->json(['feedback' => $auditLog->feedback]);
     }
 
-    protected function chatResponse(Request $request, string $question, string $answer, array $sources, string $status = 'answered', int $httpStatus = 200): JsonResponse
+    protected function chatResponse(Request $request, string $question, string $answer, array $sources, string $status = 'answered', int $httpStatus = 200, ?array $queryEmbedding = null): JsonResponse
     {
         $auditId = null;
 
         try {
-            $user = $request->user();
+            $user = $this->resolveUserModel($request);
 
             $audit = SearchAuditLog::create([
                 'user_type' => $user ? 'authenticated' : 'guest',
-                'user_identifier' => $user?->id ?? $request->ip() ?? 'unknown',
+                'user_identifier' => $user?->id ?? $user?->nip ?? $request->ip() ?? 'unknown',
                 'user_name' => $user?->name,
                 'query' => $question,
                 'answer' => $answer,
@@ -604,15 +681,83 @@ class ChatController extends Controller
                 'user_agent' => $request->userAgent(),
             ]);
             $auditId = $audit->id;
+
+            // Simpan query_embedding via raw SQL karena Eloquent tidak
+            // punya cast bawaan untuk tipe kolom 'vector' milik pgvector.
+            // Dipakai nanti untuk clustering pertanyaan populer (auto-FAQ).
+            if (! empty($queryEmbedding)) {
+                $vectorString = '['.implode(',', $queryEmbedding).']';
+
+                DB::statement(
+                    'UPDATE search_audit_logs SET query_embedding = ?::vector WHERE id = ?',
+                    [$vectorString, $auditId]
+                );
+            }
         } catch (\Throwable $exception) {
             Log::warning('Gagal mencatat audit chatbot', ['message' => $exception->getMessage()]);
         }
 
         return response()->json([
-            'answer' => $this->withGreeting($answer, $request->user()),
+            'answer' => $this->withGreeting($answer, $this->resolveUserModel($request)),
             'sources' => $sources,
             'audit_id' => $auditId,
         ], $httpStatus);
+    }
+
+    /**
+     * Embed satu teks pertanyaan lewat endpoint /embed/queries di Python service.
+     * Dipakai untuk cek FAQ match SEBELUM melakukan RAG search penuh.
+     *
+     * @return array<float>|null null kalau gagal (bukan error fatal, alur akan
+     *                            lanjut ke RAG+LLM seperti biasa)
+     */
+    protected function embedQuery(string $text): ?array
+    {
+        $pythonUrl = rtrim(
+            config('services.python_ai.base_url', 'http://localhost:8000'),
+            '/'
+        ).'/embed/queries';
+
+        try {
+            $response = Http::connectTimeout(3)
+                ->timeout(8)
+                ->post($pythonUrl, ['queries' => [$text]]);
+
+            if (! $response->successful()) {
+                return null;
+            }
+
+            return $response->json('embeddings.0');
+        } catch (\Throwable $e) {
+            Log::warning('Gagal embed query untuk cek FAQ match', ['message' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Cari FAQ approved yang paling mirip dengan embedding pertanyaan user.
+     * Mengembalikan null kalau tidak ada FAQ approved sama sekali, atau kalau
+     * FAQ paling mirip pun jaraknya masih di atas $faqMatchThreshold.
+     */
+    protected function findMatchingFaq(array $queryEmbedding): ?object
+    {
+        $vectorString = '['.implode(',', $queryEmbedding).']';
+
+        $match = DB::selectOne(
+            "SELECT id, question, answer, question_embedding <=> ?::vector AS distance
+             FROM faq_entries
+             WHERE status = 'approved'
+             ORDER BY distance ASC
+             LIMIT 1",
+            [$vectorString]
+        );
+
+        if ($match === null || (float) $match->distance > $this->faqMatchThreshold) {
+            return null;
+        }
+
+        return $match;
     }
 
     /**

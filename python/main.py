@@ -11,7 +11,7 @@ from slowapi.middleware import SlowAPIMiddleware
 
 from core.logging import setup_logging
 from repositories.vector_repository import vector_repo
-from routers import ingest, search
+from routers import ingest, search, embed, cluster
 
 setup_logging()
 logger = structlog.get_logger()
@@ -40,6 +40,8 @@ app.add_middleware(SlowAPIMiddleware)
 # Routers
 app.include_router(ingest.router, tags=["Ingestion"])
 app.include_router(search.router, tags=["Search"])
+app.include_router(embed.router, tags=["Embedding"])
+app.include_router(cluster.router, tags=["Clustering"])
 
 @app.get("/health")
 async def health_check():
