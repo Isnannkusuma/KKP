@@ -9,7 +9,7 @@ it('retrieves employee data from the configured portal endpoint', function () {
 
     Http::fake(function (Request $request) use ($nip) {
         expect($request->url())
-            ->toEndWith('/drh/' . $nip . '/');
+            ->toEndWith('/drh/'.$nip.'/');
         expect($request->header('Authorization'))
             ->not->toBeEmpty();
 

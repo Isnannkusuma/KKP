@@ -193,9 +193,9 @@ function renderBangkomFallback(content: string) {
 
 
     return (
-        <div className="w-full max-w-full overflow-hidden rounded-xl border border-slate-700 bg-slate-950 text-slate-100 shadow-2xl">
-            <div className="border-b border-slate-700 bg-slate-900 px-3 py-3 sm:px-4">
-                <div className="text-sm font-semibold text-slate-100 sm:text-[15px]">Detail Bangkom</div>
+        <div className="w-full max-w-full overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm">
+            <div className="border-b border-slate-200 bg-slate-50 px-3 py-3 sm:px-4">
+                <div className="text-sm font-semibold text-slate-800 sm:text-[15px]">Detail Bangkom</div>
             </div>
 
             <div className="max-h-140 overflow-y-auto px-3 py-3 sm:px-4">
@@ -216,16 +216,16 @@ function renderBangkomFallback(content: string) {
                         });
 
                         return (
-                            <div key={`${title}-${index}`} className="rounded-lg border border-slate-700 bg-slate-900/80 p-3">
-                                <div className="mb-2 text-sm font-semibold text-slate-100 sm:text-[15px]">{title}</div>
-                                <div className="space-y-2 text-xs leading-relaxed text-slate-200 sm:text-sm">
+                            <div key={`${title}-${index}`} className="rounded-lg border border-slate-200 bg-slate-50/70 p-3">
+                                <div className="mb-2 text-sm font-semibold text-slate-800 sm:text-[15px]">{title}</div>
+                                <div className="space-y-2 text-xs leading-relaxed text-slate-600 sm:text-sm">
                                     {detailLines.map((line, lineIndex) => {
                                         const cleanLine = line.replace(/\*\*/g, '').trim();
 
                                         if (cleanLine.startsWith('- ') || cleanLine.startsWith('• ')) {
                                             return (
                                                 <div key={`${cleanLine}-${lineIndex}`} className="flex gap-2">
-                                                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
+                                                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" />
                                                     <span>{cleanLine.replace(/^[-•]\s*/, '')}</span>
                                                 </div>
                                             );
@@ -266,57 +266,57 @@ function renderBangkomMessage(content: string) {
     ];
 
     return (
-        <div className="w-full max-w-full overflow-hidden rounded-xl border border-slate-700 bg-slate-950 text-slate-100 shadow-2xl">
-            <div className="border-b border-slate-700 bg-slate-900 px-3 py-3 sm:px-4">
-                <div className="text-sm font-semibold text-slate-100 sm:text-[15px]">{detailTitle}</div>
+        <div className="w-full max-w-full overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm">
+            <div className="border-b border-slate-200 bg-slate-50 px-3 py-3 sm:px-4">
+                <div className="text-sm font-semibold text-slate-800 sm:text-[15px]">{detailTitle}</div>
 
-                <div className="mt-1 text-[10px] text-slate-400 sm:text-[11px]">
+                <div className="mt-1 text-[10px] text-slate-500 sm:text-[11px]">
                     NIP: {data.nip || '-'} | Status 200 OK | 9 aspek kompetensi
                 </div>
             </div>
 
             <div className="grid gap-3 p-3 sm:grid-cols-2 sm:p-4 xl:grid-cols-5">
                 {cards.map((card) => (
-                    <div key={card.label} className="min-h-22.5 rounded-lg border border-slate-700 bg-slate-900/80 p-3">
-                        <div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:text-[11px]">{card.label}</div>
-                        <div className="text-sm font-semibold text-slate-100 wrap-break-word sm:text-[15px]">{card.value}</div>
+                    <div key={card.label} className="min-h-22.5 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:text-[11px]">{card.label}</div>
+                        <div className="text-sm font-semibold text-slate-800 wrap-break-word sm:text-[15px]">{card.value}</div>
                     </div>
                 ))}
             </div>
 
             <div className="grid gap-3 px-3 pb-3 sm:px-4 sm:pb-4 md:grid-cols-3">
-                <div className="rounded-lg border border-slate-700 bg-slate-900/80 p-3">
-                    <div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:text-[11px]">Rekomendasi Manajerial</div>
-                    <div className="inline-flex rounded-full bg-emerald-500/15 px-2 py-1 text-[10px] font-medium text-emerald-300 sm:text-xs">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:text-[11px]">Rekomendasi Manajerial</div>
+                    <div className="inline-flex rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-medium text-emerald-700 sm:text-xs">
                         {data.rekomendasiManajerial || 'Tidak Wajib'}
                     </div>
-                    <div className="mt-3 text-xs text-slate-300 sm:text-sm">
+                    <div className="mt-3 text-xs text-slate-600 sm:text-sm">
                         {data.rekomendasiManajerial?.toLowerCase() === 'tidak wajib' ? 'Diklat Penjenjangan' : data.rekomendasiManajerial || 'Diklat Penjenjangan'}
                     </div>
                 </div>
 
-                <div className="rounded-lg border border-slate-700 bg-slate-900/80 p-3">
-                    <div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:text-[11px]">Rekomendasi Jabatan Fungsional</div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:text-[11px]">Rekomendasi Jabatan Fungsional</div>
 
-                    <div className="inline-flex rounded-full bg-emerald-500/15 px-2 py-1 text-[10px] font-medium text-emerald-300 sm:text-xs">
+                    <div className="inline-flex rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-medium text-emerald-700 sm:text-xs">
                         {data.rekomendasiFungsional || 'Sudah'}
                     </div>
-                    <div className="mt-3 text-xs text-slate-300 sm:text-sm">
+                    <div className="mt-3 text-xs text-slate-600 sm:text-sm">
                         {data.rekomendasiFungsional ? 'Sudah Memiliki Sertifikasi - Diklat Fungsional' : 'Belum tersedia'}
                     </div>
                 </div>
 
-                <div className="rounded-lg border border-slate-700 bg-slate-900/80 p-3">
-                    <div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:text-[11px]">JPM Kompetensi</div>
-                    <div className="text-base font-semibold text-slate-100 sm:text-[18px]">{data.jpmKompetensi || '0'} / Target: 0</div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:text-[11px]">JPM Kompetensi</div>
+                    <div className="text-base font-semibold text-slate-800 sm:text-[18px]">{data.jpmKompetensi || '0'} / Target: 0</div>
                 </div>
             </div>
 
             <div className="px-3 pb-3 sm:px-4 sm:pb-4">
-                <div className="mb-3 text-sm font-semibold text-slate-200 sm:text-[14px]">Nilai & Gap Kompetensi Per Aspek</div>
-                <div className="overflow-x-auto rounded-lg border border-slate-700 bg-slate-900/80">
+                <div className="mb-3 text-sm font-semibold text-slate-700 sm:text-[14px]">Nilai & Gap Kompetensi Per Aspek</div>
+                <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
                     <div className="min-w-175">
-                        <div className="grid grid-cols-[1.2fr_0.8fr_0.8fr_2fr_2fr] gap-2 border-b border-slate-700 bg-slate-800/90 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-300 sm:text-[11px]">
+                        <div className="grid grid-cols-[1.2fr_0.8fr_0.8fr_2fr_2fr] gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-[11px]">
                             <span>Aspek</span>
                             <span>Nilai</span>
                             <span>Gap</span>
@@ -325,7 +325,7 @@ function renderBangkomMessage(content: string) {
                         </div>
 
                         {(data.recommendations.length > 0 ? data.recommendations : [{ aspek: 'Tidak ada data', nilai: '-', gap: '-', pelatihan: [], kegiatan: [], mandiri: '' }]).map((item, idx) => (
-                            <div key={`${item.aspek}-${idx}`} className="grid grid-cols-[1.2fr_0.8fr_0.8fr_2fr_2fr] gap-2 border-b border-slate-700/80 px-3 py-3 text-xs text-slate-200 last:border-b-0 sm:text-sm">
+                            <div key={`${item.aspek}-${idx}`} className="grid grid-cols-[1.2fr_0.8fr_0.8fr_2fr_2fr] gap-2 border-b border-slate-100 px-3 py-3 text-xs text-slate-700 last:border-b-0 sm:text-sm">
                                 <span>{item.aspek}</span>
                                 <span>{item.nilai || '-'}</span>
                                 <span>{item.gap || '-'}</span>
@@ -491,10 +491,10 @@ function RadarChart({ metrics }: { metrics: { label: string; value: number; max:
                     {
                         label: 'Kompetensi',
                         data: values,
-                        backgroundColor: 'rgba(59, 130, 246, 0.18)',
-                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(15, 118, 110, 0.18)',
+                        borderColor: '#0f766e',
                         borderWidth: 2,
-                        pointBackgroundColor: '#3b82f6',
+                        pointBackgroundColor: '#0f766e',
                         pointBorderColor: '#fff',
                         pointRadius: 4,
                         pointHoverRadius: 5,
@@ -567,7 +567,7 @@ function RadarChart({ metrics }: { metrics: { label: string; value: number; max:
 
 function renderMappingProfile(content: string) {
     const profile = parseMappingProfileData(content);
-    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#14b8a6', '#a855f7', '#fb923c'];
+    const colors = ['#0f766e', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#0891b2', '#f97316', '#84cc16', '#ec4899', '#14b8a6', '#a855f7', '#fb923c'];
     const metricsToRender = profile.metrics.filter((metric) => metric.value > 0 || metric.label.toLowerCase().includes('n talent'));
 
     return (
@@ -576,7 +576,7 @@ function renderMappingProfile(content: string) {
             <div className="mb-3 text-[11px] text-slate-500">NIP: {profile.nip} &nbsp;|&nbsp; Status: 200 OK &nbsp;|&nbsp; 1 record</div>
 
             <div className="mb-3 flex flex-wrap gap-2">
-                <span className="inline-flex rounded-full border border-blue-200 bg-blue-100 px-2 py-1 text-[11px] font-semibold text-blue-700">Box: {profile.box || '—'}</span>
+                <span className="inline-flex rounded-full border border-teal-200 bg-teal-100 px-2 py-1 text-[11px] font-semibold text-teal-700">Box: {profile.box || '—'}</span>
                 <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-700">TW {profile.triwulan || '—'}</span>
                 <span className="inline-flex rounded-full border border-amber-200 bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-700">Tahun {profile.tahunTriwulan || '—'}</span>
             </div>
@@ -588,7 +588,7 @@ function renderMappingProfile(content: string) {
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-center">
                     <div className="mb-1 text-[10px] uppercase tracking-wide text-slate-500">N Talent</div>
-                    <div className="text-[22px] font-bold text-blue-500">{profile.nTalent > 0 ? profile.nTalent.toFixed(2) : '—'}</div>
+                    <div className="text-[22px] font-bold text-teal-600">{profile.nTalent > 0 ? profile.nTalent.toFixed(2) : '—'}</div>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-center">
                     <div className="mb-1 text-[10px] uppercase tracking-wide text-slate-500">Sumbu Y</div>
@@ -738,7 +738,7 @@ function parsePersonalProfileData(content: string) {
 
     const badges = [
         { label: 'Aktif', tone: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-        { label: 'PNS', tone: 'bg-blue-100 text-blue-700 border-blue-200' },
+        { label: 'PNS', tone: 'bg-teal-100 text-teal-700 border-teal-200' },
         { label: pangkat !== '—' ? pangkat : 'Golongan', tone: 'bg-slate-100 text-slate-700 border-slate-200' },
     ];
 
@@ -908,7 +908,7 @@ function PersonalProfileCard({ profile }: { profile: ReturnType<typeof parsePers
                         onClick={() => setActiveTab(tab)}
                         className={`rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${
                             activeTab === tab
-                                ? 'border-slate-400 bg-white text-slate-800'
+                                ? 'border-teal-300 bg-white text-teal-700'
                                 : 'border-slate-200 bg-transparent text-slate-600 hover:bg-white'
                         }`}
                     >
@@ -935,7 +935,7 @@ export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
         <div className={`mb-5 flex min-w-0 gap-3 ${isAi ? '' : 'flex-row-reverse'}`}>
 
             <div className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center ${
-                isAi ? 'bg-[#edf3f8] text-[#3471ac] shadow-sm' : 'bg-[#f5f6f8] text-[#65809b] shadow-sm'
+                isAi ? 'bg-[#e6f3f1] text-[#078589] shadow-sm' : 'bg-[#eaf1f2] text-[#365765] shadow-sm'
             }`}>
                 {isAi ? <Bot className="h-5 w-5" /> : <User className="h-5 w-5" />}
             </div>
@@ -943,8 +943,8 @@ export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
             <div className={`flex min-w-0 max-w-[85%] flex-col ${isAi ? 'items-start' : 'items-end'}`}>
                 <div className={`min-w-0 w-full rounded-2xl px-4 py-3 text-sm shadow-sm ${
                     isAi 
-                        ? 'border border-white/35 bg-[#eff5fb] text-[#245ac0] rounded-tl-sm'
-                        : 'border border-white/45 bg-[#f5f6f8] text-[#245ac0] rounded-tr-sm'
+                        ? 'border border-[#d6e7e8] bg-white text-[#183746] rounded-tl-sm'
+                        : 'border border-[#cfe5e3] bg-[#eaf5f3] text-[#183746] rounded-tr-sm'
                 }`}>
                     {isAi && isCasualGreeting(message.content) ? (
                         <p className="whitespace-pre-wrap leading-relaxed wrap-break-words">
@@ -963,8 +963,8 @@ export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
                     )}
 
                     {isAi && message.sources && message.sources.length > 0 && (
-                        <div className="mt-4 border-t border-blue-200/70 pt-3">
-                            <p className="mb-2 flex gap-1 text-[10px] font-semibold uppercase tracking-wider text-[#5177ad]">
+                        <div className="mt-4 border-t border-teal-200/70 pt-3">
+                            <p className="mb-2 flex gap-1 text-[10px] font-semibold uppercase tracking-wider text-teal-700">
                                 <FileText className="h-3 w-3" />
                                 Sumber Referensi
                             </p>
@@ -979,13 +979,13 @@ export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
                                     return (
                                         <div 
                                             key={idx} 
-                                            className="flex gap-2 rounded-md border border-blue-100 bg-blue-50/70 p-2 text-xs transition-colors hover:bg-blue-100"
+                                            className="flex gap-2 rounded-md border border-teal-100 bg-teal-50/70 p-2 text-xs transition-colors hover:bg-teal-100"
                                         >
-                                            <span className="flex-1 truncate font-medium text-[#1956a5]" title={safeFilename}>
+                                            <span className="flex-1 truncate font-medium text-teal-800" title={safeFilename}>
                                                 {safeFilename}
                                             </span>
                                             
-                                            <span className="whitespace-nowrap rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-[#5177ad]">
+                                            <span className="whitespace-nowrap rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-teal-700">
                                                  {(safeScore * 100).toFixed(1)}% match
                                             </span>
                                         </div>
@@ -996,12 +996,12 @@ export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
                     )}
                 </div>
 
-                <div className={`mt-1 flex items-center gap-1 px-1 ${isAi ? 'text-white/55' : 'text-white/65'}`}>
+                <div className={`mt-1 flex items-center gap-1 px-1 ${isAi ? 'text-slate-400' : 'text-slate-500'}`}>
                     <span className="mr-1 text-[10px]">{new Date(message.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
                     {isAi && message.auditId && onFeedback && (
                         <>
-                            <button type="button" aria-label="Jawaban membantu" title="Jawaban membantu" onClick={() => onFeedback(message.id, message.auditId!, 'positive')} className={`grid size-6 place-items-center rounded-md transition ${message.feedback === 'positive' ? 'bg-emerald-400/25 text-emerald-200' : 'hover:bg-white/15 hover:text-white'}`}><ThumbsUp className="size-3.5" /></button>
-                            <button type="button" aria-label="Jawaban tidak membantu" title="Jawaban tidak membantu" onClick={() => onFeedback(message.id, message.auditId!, 'negative')} className={`grid size-6 place-items-center rounded-md transition ${message.feedback === 'negative' ? 'bg-rose-400/25 text-rose-200' : 'hover:bg-white/15 hover:text-white'}`}><ThumbsDown className="size-3.5" /></button>
+                            <button type="button" aria-label="Jawaban membantu" title="Jawaban membantu" onClick={() => onFeedback(message.id, message.auditId!, 'positive')} className={`grid size-6 place-items-center rounded-md transition ${message.feedback === 'positive' ? 'bg-emerald-100 text-emerald-700' : 'hover:bg-slate-200 hover:text-slate-700'}`}><ThumbsUp className="size-3.5" /></button>
+                            <button type="button" aria-label="Jawaban tidak membantu" title="Jawaban tidak membantu" onClick={() => onFeedback(message.id, message.auditId!, 'negative')} className={`grid size-6 place-items-center rounded-md transition ${message.feedback === 'negative' ? 'bg-rose-100 text-rose-700' : 'hover:bg-slate-200 hover:text-slate-700'}`}><ThumbsDown className="size-3.5" /></button>
                         </>
                     )}
                 </div>

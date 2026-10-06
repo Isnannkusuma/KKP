@@ -16,6 +16,8 @@ class FaqEntry extends Model
         'question',
         'answer',
         'status',
+        'source',
+        'search_audit_log_id',
         'approved_at',
         'approved_by',
     ];

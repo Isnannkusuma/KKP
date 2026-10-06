@@ -11,7 +11,7 @@ it('retrieves employee data from the pemetaan endpoint envelope', function () {
     putenv("PEMETAAN_API_KEY={$endpoint}");
 
     Http::fake(function (Request $request) use ($endpoint, $nip) {
-        expect($request->url())->toBe($endpoint . $nip);
+        expect($request->url())->toBe($endpoint.$nip);
 
         return Http::response([
             'success' => true,

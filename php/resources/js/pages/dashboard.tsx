@@ -1,10 +1,11 @@
 import { Head, router } from '@inertiajs/react';
-import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Download, MessageSquareWarning, MessagesSquare, RefreshCw, ThumbsUp, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Download, MessageSquareWarning, MessagesSquare, Pencil, RefreshCw, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { GLASS_BAR, GLASS_CARD, GLASS_PAGE_BG, GLASS_PILL, PRIMARY_BUTTON } from '@/lib/glass-theme';
@@ -30,14 +31,11 @@ interface DashboardProps {
         total: number;
         answered: number;
         unanswered: number;
-        feedbackCount: number;
-        positiveFeedback: number;
-        satisfactionRate: number;
     };
     daily: DailyActivity[];
     contextGroups: PaginationData<ContextGroup>;
     popularQuestions: PaginationData<QuestionSummary>;
-    unansweredQuestions: UnansweredQuestion[];
+    unansweredQuestions: PaginationData<UnansweredQuestion>;
 }
 
 interface PaginationData<T> {
@@ -55,6 +53,7 @@ interface ContextGroup {
 }
 
 interface DailyActivity {
+    date: string;
     label: string;
     total: number;
     answered: number;
@@ -73,6 +72,7 @@ const formatDate = (date: string | null): string => {
 };
 
 export default function Dashboard({ period, stats, daily, contextGroups, popularQuestions, unansweredQuestions }: DashboardProps) {
+    const [selectedDay, setSelectedDay] = useState<DailyActivity | null>(null);
     const answerRate = stats.total === 0 ? 0 : Math.round((stats.answered / stats.total) * 100);
     const maximumActivity = Math.max(...daily.map((item) => item.total), 1);
     const maximumResolution = Math.max(...daily.map((item) => item.total), 1);
@@ -87,6 +87,14 @@ export default function Dashboard({ period, stats, daily, contextGroups, popular
         router.delete('/dashboard/audits', { data: { period: deletionPeriod, questions }, preserveScroll: true });
     };
 
+    const deleteUnanswered = (id: string) => {
+        if (!window.confirm('Hapus pertanyaan ini? Tindakan ini tidak dapat dibatalkan.')) {
+            return;
+        }
+
+        router.delete(`/dashboard/audits/${id}`, { preserveScroll: true });
+    };
+
     return (
         <>
             <Head title="Monitoring Chatbot" />
@@ -98,7 +106,7 @@ export default function Dashboard({ period, stats, daily, contextGroups, popular
                             <p className="text-xs font-medium text-emerald-600">Sistem aktif &middot; Data real-time</p>
                         </div>
                         <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">Monitoring Chatbot</h1>
-                        <p className="text-sm text-slate-500">Analisis penggunaan, resolusi jawaban, dan kepuasan pengguna.</p>
+                        <p className="text-sm text-slate-500">Analisis penggunaan dan resolusi jawaban.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <label className="sr-only" htmlFor="period">Periode</label>
@@ -113,17 +121,17 @@ export default function Dashboard({ period, stats, daily, contextGroups, popular
                     </div>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     <MetricCard label="Total pertanyaan" value={stats.total} detail={`Dalam ${period} hari terakhir`} icon={MessagesSquare} />
                     <MetricCard label="Tingkat resolusi" value={`${answerRate}%`} detail={`${stats.answered} pertanyaan terjawab`} icon={CheckCircle2} tone="success" />
                     <MetricCard label="Perlu evaluasi" value={stats.unanswered} detail="Belum ditemukan jawaban relevan" icon={MessageSquareWarning} tone="warning" />
-                    <MetricCard label="Kepuasan pengguna" value={stats.feedbackCount ? `${stats.satisfactionRate}%` : '-'} detail={stats.feedbackCount ? `${stats.positiveFeedback} dari ${stats.feedbackCount} feedback positif` : 'Belum ada feedback'} icon={ThumbsUp} tone="info" />
                 </div>
 
                 {/* Baris 1 — dua chart sejajar kiri & kanan */}
                 <div className="grid items-stretch gap-6 xl:grid-cols-2">
-                    <ActivityChart daily={daily} maximum={maximumActivity} period={period} />
-                    <ResolutionChart daily={daily} maximum={maximumResolution} />
+                    <ActivityChart daily={daily} maximum={maximumActivity} period={period} onSelect={setSelectedDay} />
+                    <ResolutionChart daily={daily} maximum={maximumResolution} onSelect={setSelectedDay} />
+                    <DayQuestionsDialog day={selectedDay} onClose={() => setSelectedDay(null)} />
                 </div>
 
                 {/* Baris 2 — konteks pertanyaan & pertanyaan populer sejajar kiri & kanan */}
@@ -173,7 +181,7 @@ export default function Dashboard({ period, stats, daily, contextGroups, popular
                         <CardDescription className="text-slate-500">Gunakan daftar ini untuk menentukan dokumen atau jawaban yang perlu ditambahkan.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {unansweredQuestions.length > 0 ? (
+                        {unansweredQuestions.data.length > 0 ? (
                             <div className="w-full overflow-x-auto">
                                 <Table>
                                     <TableHeader>
@@ -181,20 +189,23 @@ export default function Dashboard({ period, stats, daily, contextGroups, popular
                                             <TableHead className="text-slate-700">Pertanyaan</TableHead>
                                             <TableHead className="w-44 text-slate-700">Waktu</TableHead>
                                             <TableHead className="w-32 text-slate-700">Status</TableHead>
+                                            <TableHead className="w-28 text-right text-slate-700">Aksi</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {unansweredQuestions.map((item) => (
+                                        {unansweredQuestions.data.map((item) => (
                                             <TableRow key={item.id} className="border-blue-50">
                                                 <TableCell className="whitespace-normal font-medium text-slate-700">{item.question}</TableCell>
                                                 <TableCell className="text-slate-500">{formatDate(item.askedAt)}</TableCell>
                                                 <TableCell><Badge variant="destructive">Belum terjawab</Badge></TableCell>
+                                                <TableCell><div className="flex justify-end gap-1"><AnswerDialog item={item} /><button type="button" title="Hapus pertanyaan" aria-label={`Hapus ${item.question}`} onClick={() => deleteUnanswered(item.id)} className="grid size-8 place-items-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="size-4" /></button></div></TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
                                 </Table>
                             </div>
                         ) : <EmptyState message="Semua pertanyaan yang tercatat telah dapat dijawab." />}
+                        <Pagination pagination={unansweredQuestions} pageKey="unanswered_page" period={period} />
                     </CardContent>
                 </Card>
             </div>
@@ -261,7 +272,7 @@ function ExportDialog() {
 
     return <Dialog>
         <DialogTrigger asChild><Button className={cn(PRIMARY_BUTTON, 'rounded-full')}><Download /> Unduh laporan</Button></DialogTrigger>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="bg-white sm:max-w-md">
             <DialogHeader><DialogTitle className="text-slate-900">Unduh laporan monitoring</DialogTitle><DialogDescription className="text-slate-500">Pilih rentang data dan kolom yang ingin dimasukkan dalam file Excel.</DialogDescription></DialogHeader>
             <div className="space-y-5 py-2">
                 <div className="space-y-2"><label className="text-sm font-medium text-slate-700" htmlFor="export-period">Rentang waktu</label><select id="export-period" value={period} onChange={(event) => setPeriod(Number(event.target.value))} className="h-9 w-full rounded-md border bg-white px-3 text-sm text-slate-700"><option value={7}>7 hari terakhir</option><option value={15}>15 hari terakhir</option><option value={30}>30 hari terakhir</option><option value={90}>90 hari terakhir</option></select></div>
@@ -304,7 +315,63 @@ function MetricCard({ label, value, detail, icon: Icon, tone }: { label: string;
     );
 }
 
-function ActivityChart({ daily, maximum, period }: { daily: DailyActivity[]; maximum: number; period: number }) {
+interface DayQuestion {
+    id: string;
+    question: string;
+    user: string;
+    status: string | null;
+    askedAt: string | null;
+}
+
+function DayQuestionsDialog({ day, onClose }: { day: DailyActivity | null; onClose: () => void }) {
+    const [state, setState] = useState<{ date: string; items: DayQuestion[] | null; failed: boolean } | null>(null);
+    const date = day?.date ?? null;
+
+    useEffect(() => {
+        if (!date) {
+            return;
+        }
+
+        const controller = new AbortController();
+
+        fetch(`/dashboard/day-questions?date=${date}`, { headers: { Accept: 'application/json' }, signal: controller.signal })
+            .then((response) => (response.ok ? response.json() : Promise.reject(new Error('failed'))))
+            .then((json: { data: DayQuestion[] }) => setState({ date, items: json.data, failed: false }))
+            .catch((error: Error) => {
+                if (error.name !== 'AbortError') {
+                    setState({ date, items: null, failed: true });
+                }
+            });
+
+        return () => controller.abort();
+    }, [date]);
+
+    const current = state && state.date === date ? state : null;
+
+    return <Dialog open={day !== null} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="bg-white sm:max-w-3xl">
+            <DialogHeader>
+                <DialogTitle className="text-slate-900">Pertanyaan tanggal {day?.label}</DialogTitle>
+                <DialogDescription className="text-slate-500">Daftar pertanyaan yang diajukan pengguna pada hari ini.</DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[60vh] overflow-auto">
+                {!current ? <p className="py-8 text-center text-sm text-slate-400">Memuat...</p>
+                    : current.failed ? <p className="py-8 text-center text-sm text-red-500">Gagal memuat pertanyaan.</p>
+                        : current.items && current.items.length === 0 ? <EmptyState message="Tidak ada pertanyaan pada hari ini." />
+                            : <Table>
+                                <TableHeader><TableRow><TableHead>Pertanyaan</TableHead><TableHead>Pengguna</TableHead><TableHead>Waktu</TableHead></TableRow></TableHeader>
+                                <TableBody>{current.items?.map((item) => <TableRow key={item.id}>
+                                    <TableCell className="max-w-sm whitespace-normal break-words font-medium text-slate-700">{item.question}</TableCell>
+                                    <TableCell className="text-slate-600">{item.user}</TableCell>
+                                    <TableCell className="whitespace-nowrap text-slate-500">{formatDate(item.askedAt)}</TableCell>
+                                </TableRow>)}</TableBody>
+                            </Table>}
+            </div>
+        </DialogContent>
+    </Dialog>;
+}
+
+function ActivityChart({ daily, maximum, period, onSelect }: { daily: DailyActivity[]; maximum: number; period: number; onSelect: (day: DailyActivity) => void }) {
     const visibleLabels = Math.min(period, 6);
 
     return <Card className={cn('flex h-full flex-col', GLASS_CARD)}>
@@ -314,7 +381,7 @@ function ActivityChart({ daily, maximum, period }: { daily: DailyActivity[]; max
         </CardHeader>
         <CardContent className="flex flex-1 flex-col justify-end">
             <div className="flex h-52 items-end gap-px border-b border-l border-blue-100 px-3 pt-5 sm:gap-1">
-                {daily.map((item) => <div key={item.label} className="group flex h-full min-w-0 flex-1 items-end" title={`${item.label}: ${item.total} pertanyaan`}>
+                {daily.map((item) => <div key={item.label} role="button" tabIndex={0} onClick={() => item.total && onSelect(item)} onKeyDown={(event) => event.key === 'Enter' && item.total && onSelect(item)} className={cn('group flex h-full min-w-0 flex-1 items-end', item.total ? 'cursor-pointer' : '')} title={`${item.label}: ${item.total} pertanyaan`}>
                     <div className="w-full rounded-t-sm bg-blue-500/80 transition-colors group-hover:bg-blue-600" style={{ height: item.total ? `${Math.max((item.total / maximum) * 100, 3)}%` : '0%' }} />
                 </div>)}
             </div>
@@ -323,7 +390,7 @@ function ActivityChart({ daily, maximum, period }: { daily: DailyActivity[]; max
     </Card>;
 }
 
-function ResolutionChart({ daily, maximum }: { daily: DailyActivity[]; maximum: number }) {
+function ResolutionChart({ daily, maximum, onSelect }: { daily: DailyActivity[]; maximum: number; onSelect: (day: DailyActivity) => void }) {
     const totalAnswered = daily.reduce((total, item) => total + item.answered, 0);
     const totalUnanswered = daily.reduce((total, item) => total + item.unanswered, 0);
 
@@ -334,7 +401,7 @@ function ResolutionChart({ daily, maximum }: { daily: DailyActivity[]; maximum: 
         </CardHeader>
         <CardContent className="flex flex-1 flex-col justify-end">
             <div className="flex h-52 items-end gap-px border-b border-l border-blue-100 px-3 pt-5 sm:gap-1">
-                {daily.map((item) => <div key={item.label} className="flex h-full min-w-0 flex-1 items-end gap-px" title={`${item.label}: ${item.answered} terjawab, ${item.unanswered} perlu evaluasi`}>
+                {daily.map((item) => <div key={item.label} role="button" tabIndex={0} onClick={() => item.total && onSelect(item)} onKeyDown={(event) => event.key === 'Enter' && item.total && onSelect(item)} className={cn('flex h-full min-w-0 flex-1 items-end gap-px', item.total ? 'cursor-pointer' : '')} title={`${item.label}: ${item.answered} terjawab, ${item.unanswered} perlu evaluasi`}>
                     <div className="w-1/2 rounded-t-sm bg-blue-500/85" style={{ height: item.answered ? `${Math.max((item.answered / maximum) * 100, 3)}%` : '0%' }} />
                     <div className="w-1/2 rounded-t-sm bg-amber-500/85" style={{ height: item.unanswered ? `${Math.max((item.unanswered / maximum) * 100, 3)}%` : '0%' }} />
                 </div>)}
@@ -342,6 +409,30 @@ function ResolutionChart({ daily, maximum }: { daily: DailyActivity[]; maximum: 
             <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-500"><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-blue-500" />Terjawab: {totalAnswered}</span><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-amber-500" />Perlu evaluasi: {totalUnanswered}</span></div>
         </CardContent>
     </Card>;
+}
+
+function AnswerDialog({ item }: { item: UnansweredQuestion }) {
+    const [open, setOpen] = useState(false);
+    const [answer, setAnswer] = useState('');
+    const [processing, setProcessing] = useState(false);
+    const save = () => router.put(`/dashboard/audits/${item.id}/answer`, { answer }, {
+        preserveScroll: true,
+        onStart: () => setProcessing(true),
+        onFinish: () => setProcessing(false),
+        onSuccess: () => setOpen(false),
+    });
+
+    return <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild><button type="button" title="Edit jawaban" aria-label={`Edit jawaban ${item.question}`} className="grid size-8 place-items-center rounded-md text-slate-400 hover:bg-blue-50 hover:text-blue-600"><Pencil className="size-4" /></button></DialogTrigger>
+        <DialogContent className="sm:max-w-lg">
+            <DialogHeader><DialogTitle className="text-slate-900">Tambahkan jawaban</DialogTitle><DialogDescription className="text-slate-500">Jawaban ini akan dipakai chatbot ketika pengguna menanyakan hal yang sama.</DialogDescription></DialogHeader>
+            <div className="space-y-3 py-2">
+                <p className="rounded-md bg-slate-50 p-3 text-sm font-medium text-slate-700">{item.question}</p>
+                <Textarea value={answer} onChange={(event) => setAnswer(event.target.value)} rows={7} maxLength={5000} placeholder="Tulis jawaban yang benar..." />
+            </div>
+            <DialogFooter><Button type="button" className={PRIMARY_BUTTON} onClick={save} disabled={processing || answer.trim() === ''}>Simpan jawaban</Button></DialogFooter>
+        </DialogContent>
+    </Dialog>;
 }
 
 function EmptyState({ message }: { message: string }) {

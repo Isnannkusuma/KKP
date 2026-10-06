@@ -85,7 +85,7 @@ services:
     env_file:
       - ./php/.env
     environment:
-      DB_HOST: db
+      DB_HOST: csai-host
       REDIS_HOST: redis
       PYTHON_AI_URL: http://python-ai:8000
       PEGAWAI_DB_HOST: db-pegawai
@@ -124,6 +124,8 @@ services:
           cpus: "4.0"
         reservations:
           memory: 512M
+    extra_hosts:
+      - "csai-host:host-gateway"
 
   laravel-scheduler:
     build:
@@ -133,7 +135,7 @@ services:
     env_file:
       - ./php/.env
     environment:
-      DB_HOST: db
+      DB_HOST: csai-host
       REDIS_HOST: redis
       PYTHON_AI_URL: http://python-ai:8000
       PEGAWAI_DB_HOST: db-pegawai
@@ -161,7 +163,9 @@ services:
           memory: 1G
           cpus: "1.0"
         reservations:
-          memory: 256M       
+          memory: 256M   
+    extra_hosts:
+      - "csai-host:host-gateway"  
 
   python-ai:
     build:
@@ -172,7 +176,7 @@ services:
     env_file:
       - ./python/.env
     environment:
-      DB_HOST: db
+      DB_HOST: csai-host
       PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
       PYTORCH_NVML_BASED_CUDA_CHECK: "0"
     volumes:
@@ -182,12 +186,14 @@ services:
         condition: service_healthy
     networks:
       - csai-network
-    command: gunicorn main:app -w 1 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 300
+    command: gunicorn main:app -w 3 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 300
+    extra_hosts:
+      - "csai-host:host-gateway"
     deploy:
       resources:
         limits:
           memory: 8G
-          cpus: "4.0"
+          cpus: "6.0"
         reservations:
           memory: 1.5G
 

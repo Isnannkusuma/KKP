@@ -5,21 +5,48 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Asisten Chat</title>
 <style>
+    :root {
+        --navy: #16283d;
+        --navy-light: #1e3a5c;
+        --teal: #2f6f6b;
+        --teal-dark: #245552;
+        --bg-mint: #eef6f4;
+        --border: #d9e6e3;
+        --text: #16283d;
+        --text-muted: #5b7370;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         display: flex;
         flex-direction: column;
         height: 100vh;
-        background: #f8fafc;
+        background: var(--bg-mint);
+        position: relative;
     }
     header {
-        background: #2563eb;
+        background: var(--navy);
         color: white;
-        padding: 14px 16px;
-        font-weight: 600;
-        font-size: 14px;
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-shrink: 0;
     }
+    header .title { font-weight: 700; font-size: 14px; }
+    header .auth-area { font-size: 12px; display: flex; align-items: center; gap: 8px; }
+    header .auth-area button {
+        background: var(--teal);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 5px 12px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    header .auth-area button:hover { background: var(--teal-dark); }
     #messages {
         flex: 1;
         overflow-y: auto;
@@ -38,77 +65,317 @@
     }
     .msg.user {
         align-self: flex-end;
-        background: #2563eb;
+        background: var(--teal);
         color: white;
         border-bottom-right-radius: 4px;
     }
     .msg.bot {
         align-self: flex-start;
         background: white;
-        color: #1e293b;
-        border: 1px solid #e2e8f0;
+        color: var(--text);
+        border: 1px solid var(--border);
         border-bottom-left-radius: 4px;
     }
     .msg.loading {
         align-self: flex-start;
-        color: #94a3b8;
+        color: var(--text-muted);
         font-size: 12px;
         font-style: italic;
     }
-    form {
+    form#chat-form {
         display: flex;
         gap: 8px;
         padding: 12px;
-        border-top: 1px solid #e2e8f0;
+        border-top: 1px solid var(--border);
         background: white;
+        flex-shrink: 0;
     }
     input {
         flex: 1;
-        border: 1px solid #e2e8f0;
+        border: 1px solid var(--border);
         border-radius: 20px;
         padding: 8px 14px;
         font-size: 13px;
         outline: none;
+        min-width: 0;
     }
-    input:focus { border-color: #2563eb; }
+    input:focus { border-color: var(--teal); }
     button[type="submit"] {
-        background: #2563eb;
+        background: var(--teal);
         color: white;
         border: none;
         border-radius: 20px;
         padding: 8px 16px;
         font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+    button[type="submit"]:hover { background: var(--teal-dark); }
+    button[type="submit"]:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Login modal */
+    #login-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(22, 40, 61, 0.55);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        padding: 20px;
+    }
+    #login-overlay.open { display: flex; }
+    #login-box {
+        background: white;
+        border-radius: 14px;
+        padding: 22px;
+        width: 100%;
+        max-width: 300px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        position: relative;
+    }
+    #login-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: none;
+        background: #eef2f1;
+        color: var(--navy);
+        font-size: 15px;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    #login-close:hover { background: #e2e9e7; }
+    #login-box h3 { font-size: 16px; color: var(--navy); font-weight: 700; margin-bottom: 6px; padding-right: 24px; }
+    #login-box p { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5; }
+    #login-form { display: flex; flex-direction: column; }
+    #login-box .field { display: flex; flex-direction: column; width: 100%; margin-bottom: 12px; }
+    #login-box label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--navy);
+        display: block;
+        margin-bottom: 5px;
+    }
+    #login-box input {
+        display: block;
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 9px 12px;
+        font-size: 13px;
+    }
+    #login-error {
+        color: #c0392b;
+        font-size: 12px;
+        margin-top: 4px;
+        display: none;
+    }
+    #login-actions {
+        display: flex;
+        flex-direction: column;
+        margin-top: 6px;
+    }
+    #login-actions button {
+        width: 100%;
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        border: none;
         cursor: pointer;
     }
-    button[type="submit"]:disabled { opacity: 0.5; cursor: not-allowed; }
+    #login-submit { background: var(--teal); color: white; }
+    #login-submit:hover { background: var(--teal-dark); }
+    #login-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 </style>
 </head>
 <body>
-    <header>Asisten AI KKP</header>
+    <header>
+        <span class="title">Asisten AI KKP</span>
+        <span class="auth-area" id="auth-area">
+            <button type="button" id="login-trigger">Login</button>
+        </span>
+    </header>
     <div id="messages"></div>
     <form id="chat-form">
         <input type="text" id="chat-input" placeholder="Tulis pertanyaan..." autocomplete="off" />
         <button type="submit" id="chat-submit">Kirim</button>
     </form>
 
+    <div id="login-overlay">
+        <div id="login-box">
+            <button type="button" id="login-close" aria-label="Tutup">&times;</button>
+            <h3>Login untuk melanjutkan</h3>
+            <p>Beberapa pertanyaan (data pribadi, pemetaan, bangkom) memerlukan login dengan NIP.</p>
+            <form id="login-form">
+                <div class="field">
+                    <label for="login-nip">NIP</label>
+                    <input type="text" id="login-nip" autocomplete="username" required />
+                </div>
+                <div class="field">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" autocomplete="current-password" required />
+                </div>
+                <div id="login-error"></div>
+                <div id="login-actions">
+                    <button type="submit" id="login-submit">Login</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         (function () {
             var params = new URLSearchParams(window.location.search);
             var widgetKey = params.get('widget_key');
-            var identityToken = null;
+            var identityToken = null; // token SSO dari situs lain (opsional, untuk masa depan)
             var pageOrigin = null;
             var history = [];
+            var pendingMessage = null; // pertanyaan yang tertunda menunggu login
+
+            // ---------- Sesi login widget (NIP+password) ----------
+            var STORAGE_KEY = 'kkp_chat_widget_session_' + widgetKey;
+            var sessionToken = null;
+            var currentUser = null; // {name, nip}
+
+            try {
+                var saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    var parsed = JSON.parse(saved);
+                    sessionToken = parsed.token;
+                    currentUser = parsed.user;
+                }
+            } catch (e) { /* localStorage tidak tersedia, lanjut tanpa sesi tersimpan */ }
 
             var messagesEl = document.getElementById('messages');
             var formEl = document.getElementById('chat-form');
             var inputEl = document.getElementById('chat-input');
             var submitEl = document.getElementById('chat-submit');
+            var authAreaEl = document.getElementById('auth-area');
+            var loginOverlayEl = document.getElementById('login-overlay');
+            var loginFormEl = document.getElementById('login-form');
+            var loginNipEl = document.getElementById('login-nip');
+            var loginPasswordEl = document.getElementById('login-password');
+            var loginErrorEl = document.getElementById('login-error');
+            var loginSubmitEl = document.getElementById('login-submit');
+            var loginCloseEl = document.getElementById('login-close');
 
             window.addEventListener('message', function (event) {
                 if (event.data && event.data.type === 'kkp-chat-init') {
                     pageOrigin = event.data.pageOrigin || null;
                     identityToken = event.data.identityToken || null;
                 }
+            });
+
+            function renderAuthArea() {
+                if (currentUser) {
+                    authAreaEl.innerHTML =
+                        '<span>' + escapeHtml(currentUser.name || currentUser.nip) + '</span>' +
+                        '<button type="button" id="logout-trigger">Logout</button>';
+                    document.getElementById('logout-trigger').addEventListener('click', logout);
+                } else {
+                    authAreaEl.innerHTML = '<button type="button" id="login-trigger">Login</button>';
+                    document.getElementById('login-trigger').addEventListener('click', function () {
+                        openLoginModal(null);
+                    });
+                }
+            }
+
+            function escapeHtml(text) {
+                var div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            function saveSession(token, user) {
+                sessionToken = token;
+                currentUser = user;
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: token, user: user }));
+                } catch (e) { /* abaikan kalau localStorage tidak tersedia */ }
+                renderAuthArea();
+            }
+
+            function clearSession() {
+                sessionToken = null;
+                currentUser = null;
+                try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+                renderAuthArea();
+            }
+
+            function logout() {
+                fetch(window.location.origin + '/api/widget/auth/logout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Widget-Key': widgetKey },
+                    body: JSON.stringify({ widget_key: widgetKey, page_origin: pageOrigin }),
+                }).catch(function () {});
+                clearSession();
+                addMessage('bot', 'Anda telah logout.');
+            }
+
+            function openLoginModal(messageToRetryAfterLogin) {
+                pendingMessage = messageToRetryAfterLogin;
+                loginErrorEl.style.display = 'none';
+                loginNipEl.value = '';
+                loginPasswordEl.value = '';
+                loginOverlayEl.classList.add('open');
+                loginNipEl.focus();
+            }
+
+            function closeLoginModal() {
+                loginOverlayEl.classList.remove('open');
+                pendingMessage = null;
+            }
+
+            loginCloseEl.addEventListener('click', closeLoginModal);
+
+            loginFormEl.addEventListener('submit', function (event) {
+                event.preventDefault();
+                var nip = loginNipEl.value.trim();
+                var password = loginPasswordEl.value;
+
+                if (!nip || !password) return;
+
+                loginSubmitEl.disabled = true;
+                loginErrorEl.style.display = 'none';
+
+                fetch(window.location.origin + '/api/widget/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Widget-Key': widgetKey },
+                    body: JSON.stringify({ nip: nip, password: nip, widget_key: widgetKey, page_origin: pageOrigin }),
+                })
+                    .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+                    .then(function (result) {
+                        if (!result.ok) {
+                            loginErrorEl.textContent = result.data.message || 'NIP atau password salah.';
+                            loginErrorEl.style.display = 'block';
+                            return;
+                        }
+
+                        saveSession(result.data.token, result.data.user);
+                        var toRetry = pendingMessage;
+                        closeLoginModal();
+                        addMessage('bot', 'Login berhasil sebagai ' + (result.data.user.name || result.data.user.nip) + '.');
+
+                        if (toRetry) {
+                            sendMessage(toRetry, true);
+                        }
+                    })
+                    .catch(function () {
+                        loginErrorEl.textContent = 'Gagal terhubung ke server. Silakan coba lagi.';
+                        loginErrorEl.style.display = 'block';
+                    })
+                    .finally(function () {
+                        loginSubmitEl.disabled = false;
+                    });
             });
 
             function addMessage(role, text) {
@@ -121,16 +388,22 @@
             }
 
             addMessage('bot', 'Halo! Ada yang bisa saya bantu terkait informasi kedinasan KKP?');
+            renderAuthArea();
 
             formEl.addEventListener('submit', function (event) {
                 event.preventDefault();
                 var message = inputEl.value.trim();
                 if (!message) return;
-
-                addMessage('user', message);
                 inputEl.value = '';
-                submitEl.disabled = true;
+                sendMessage(message, false);
+            });
 
+            function sendMessage(message, skipEchoUserBubble) {
+                if (!skipEchoUserBubble) {
+                    addMessage('user', message);
+                }
+
+                submitEl.disabled = true;
                 var loadingEl = addMessage('loading', 'Sedang mengetik...');
 
                 fetch(window.location.origin + '/api/widget/chat', {
@@ -144,12 +417,20 @@
                         history: history.slice(-12),
                         widget_key: widgetKey,
                         identity_token: identityToken,
+                        widget_session_token: sessionToken,
                         page_origin: pageOrigin,
                     }),
                 })
                     .then(function (res) { return res.json(); })
                     .then(function (data) {
                         loadingEl.remove();
+
+                        if (data.require_widget_login) {
+                            addMessage('bot', data.answer || 'Silakan login terlebih dahulu untuk melanjutkan.');
+                            openLoginModal(message);
+                            return;
+                        }
+
                         var answer = data.answer || 'Maaf, terjadi kesalahan. Silakan coba lagi.';
                         addMessage('bot', answer);
                         history.push({ role: 'user', content: message });
@@ -163,7 +444,7 @@
                         submitEl.disabled = false;
                         inputEl.focus();
                     });
-            });
+            }
         })();
     </script>
 </body>

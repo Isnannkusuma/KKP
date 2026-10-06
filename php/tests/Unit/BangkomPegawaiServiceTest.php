@@ -11,7 +11,7 @@ it('retrieves employee development data from the bangkom endpoint envelope', fun
     putenv("BANGKOM_API_KEY={$endpoint}");
 
     Http::fake(function (Request $request) use ($endpoint, $nip) {
-        expect($request->url())->toBe($endpoint . $nip);
+        expect($request->url())->toBe($endpoint.$nip);
 
         return Http::response([
             'success' => true,

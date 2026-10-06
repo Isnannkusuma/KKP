@@ -183,7 +183,7 @@ class ApiServiceController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      * @return array<int, array{name: string, path: string}>
      */
     private function flattenResponseFields(mixed $data, string $prefix = ''): array
@@ -246,8 +246,7 @@ class ApiServiceController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $payload
-     * @return mixed
+     * @param  array<string, mixed>  $payload
      */
     private function normalizeInspectSource(mixed $payload): mixed
     {
@@ -265,7 +264,7 @@ class ApiServiceController extends Controller
     }
 
     /**
-     * @param array<int, array{name: string, path: string}> $fields
+     * @param  array<int, array{name: string, path: string}>  $fields
      * @return array<int, array{name: string, path: string}>
      */
     private function deduplicateFields(array $fields): array

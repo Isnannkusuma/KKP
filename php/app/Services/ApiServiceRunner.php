@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Http;
 class ApiServiceRunner
 {
     /**
-     * @param array<string, mixed> $inputValues
+     * @param  array<string, mixed>  $inputValues
      * @return array{status: int, success: bool, data: mixed, selected: array<string, mixed>}
      */
     public function run(ApiService $service, array $inputValues = []): array
@@ -24,8 +24,8 @@ class ApiServiceRunner
     /**
      * Jalankan beberapa service API sekaligus untuk pertanyaan kombinasi.
      *
-     * @param iterable<int, ApiService> $services
-     * @param array<string, mixed> $inputValues
+     * @param  iterable<int, ApiService>  $services
+     * @param  array<string, mixed>  $inputValues
      * @return array<int, array{status: int, success: bool, data: mixed, selected: array<string, mixed>, service_id: string|null}>
      */
     public function runMany(iterable $services, array $inputValues = []): array
@@ -94,8 +94,8 @@ class ApiServiceRunner
     /**
      * Alias semantik untuk skenario pertanyaan kombinasi.
      *
-     * @param iterable<int, ApiService> $services
-     * @param array<string, mixed> $inputValues
+     * @param  iterable<int, ApiService>  $services
+     * @param  array<string, mixed>  $inputValues
      * @return array<int, array{status: int, success: bool, data: mixed, selected: array<string, mixed>, service_id: string|null}>
      */
     public function runCombined(iterable $services, array $inputValues = []): array
@@ -188,8 +188,8 @@ class ApiServiceRunner
     }
 
     /**
-     * @param array<string, mixed> $data
-     * @param array<int, array<string, string>> $fields
+     * @param  array<string, mixed>  $data
+     * @param  array<int, array<string, string>>  $fields
      * @return array<string, mixed>
      */
     private function selectFields(mixed $data, array $fields): array

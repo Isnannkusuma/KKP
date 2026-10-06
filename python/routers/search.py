@@ -6,6 +6,7 @@ import structlog
 from schemas.search_schema import SearchRequest, SearchResponse
 from services.embedding_service import EmbeddingService
 from repositories.vector_repository import vector_repo
+from utils.clean_stopword import normalize_asn_cpns_query
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -18,18 +19,19 @@ embedding_service = EmbeddingService()
 async def search_documents(request: Request, payload: SearchRequest):
     try:
         logger.info("search_requested", query=payload.query, top_k=payload.top_k)
+        normalized_query = normalize_asn_cpns_query(payload.query)
 
         # 1. Embed query (pakai embedding yang sudah dihitung Laravel kalau ada,
         # supaya tidak menghitung ulang embedding yang sama dua kali)
         if payload.query_embedding:
             query_vector = payload.query_embedding
         else:
-            query_vector = await embedding_service.embed_query(payload.query)
+            query_vector = await embedding_service.embed_query(normalized_query)
 
         # 2. Hybrid Search
         db_results = await vector_repo.search_chunks(
             query_embedding=query_vector,
-            query_text=payload.query,
+            query_text=normalized_query,
             top_k=payload.top_k,
             document_id=payload.document_id,
             category_slug=payload.category_slug

@@ -1,15 +1,20 @@
 <?php
 
 use App\Http\Controllers\ApiServiceController;
+use App\Http\Controllers\Auth\KeycloakLoginController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\FaqReviewController;
 use App\Http\Controllers\PegawaiController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\FaqReviewController;
 
 Route::redirect('/', '/chat')->name('home');
+
+Route::get('/login/keycloak', [KeycloakLoginController::class, 'redirect'])
+    ->middleware(['guest', 'throttle:login'])
+    ->name('keycloak.login');
 
 /*
 |--------------------------------------------------------------------------
@@ -50,10 +55,16 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/dashboard', DashboardController::class)
             ->name('dashboard');
+        Route::get('/dashboard/day-questions', [DashboardController::class, 'dayQuestions'])
+            ->name('dashboard.day-questions');
         Route::get('/dashboard/export', [DashboardController::class, 'export'])
             ->name('dashboard.export');
         Route::delete('/dashboard/audits', [DashboardController::class, 'destroy'])
             ->name('dashboard.audits.destroy');
+        Route::put('/dashboard/audits/{auditLog}/answer', [DashboardController::class, 'answer'])
+            ->name('dashboard.audits.answer');
+        Route::delete('/dashboard/audits/{auditLog}', [DashboardController::class, 'destroyAudit'])
+            ->name('dashboard.audits.destroy-one');
 
         // Dokumen / RAG
         Route::get('/dokumen', [DocumentController::class, 'index'])
@@ -112,19 +123,19 @@ Route::middleware('auth')->group(function () {
         // FAQ Review
         Route::get('/faq-review', [FaqReviewController::class, 'index'])
             ->name('faq-review.index');
- 
+
         Route::put('/faq-review/{faqEntry}', [FaqReviewController::class, 'update'])
             ->name('faq-review.update');
-        
+
         Route::post('/faq-review/{faqEntry}/approve', [FaqReviewController::class, 'approve'])
             ->name('faq-review.approve');
-        
+
         Route::post('/faq-review/{faqEntry}/reject', [FaqReviewController::class, 'reject'])
             ->name('faq-review.reject');
-        
+
         Route::delete('/faq-review/{faqEntry}', [FaqReviewController::class, 'destroy'])
             ->name('faq-review.destroy');
-            });
-        });
+    });
+});
 
 require __DIR__.'/settings.php';

@@ -8,6 +8,7 @@ use App\Models\Pegawai;
 use App\Models\SearchAuditLog;
 use App\Services\ApiServiceRunner;
 use App\Services\BangkomPegawaiService;
+use App\Services\Chat\QueryNormalizer;
 use App\Services\PemetaanPegawaiService;
 use App\Services\PortalPegawaiService;
 use Carbon\Carbon;
@@ -112,6 +113,7 @@ class ChatController extends Controller
             ]);
 
             $userMessage = $request->input('message');
+            $retrievalQuery = QueryNormalizer::normalize($userMessage);
             $chatHistory = collect($request->input('history', []))
                 ->filter(fn (array $item): bool => isset($item['role'], $item['content']))
                 ->map(fn (array $item): array => [
@@ -154,7 +156,7 @@ class ChatController extends Controller
                 );
 
             if (! $isPersonalRelatedQuery) {
-                $earlyEmbedding = $this->embedQuery($userMessage);
+                $earlyEmbedding = $this->embedQuery($retrievalQuery);
 
                 if ($earlyEmbedding !== null) {
                     $queryEmbedding = $earlyEmbedding;
@@ -183,7 +185,7 @@ class ChatController extends Controller
                     ->timeout(8)
                     ->asJson()
                     ->post($pythonUrl, array_filter([
-                        'query' => $userMessage,
+                        'query' => $retrievalQuery,
                         'top_k' => 3,
                         'query_embedding' => $queryEmbedding,
                     ]));
@@ -709,7 +711,7 @@ class ChatController extends Controller
      * Dipakai untuk cek FAQ match SEBELUM melakukan RAG search penuh.
      *
      * @return array<float>|null null kalau gagal (bukan error fatal, alur akan
-     *                            lanjut ke RAG+LLM seperti biasa)
+     *                           lanjut ke RAG+LLM seperti biasa)
      */
     protected function embedQuery(string $text): ?array
     {

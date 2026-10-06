@@ -17,7 +17,7 @@ class ProcessDocumentIngest implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     /**
-     * Timeout untuk job ini 
+     * Timeout untuk job ini
      */
     public $timeout = 1500;
 
@@ -41,12 +41,13 @@ class ProcessDocumentIngest implements ShouldQueue
 
         // 1. Pastikan file masih ada sebelum dikirim
         $filePath = $document->file_path;
-        if (!Storage::disk('public')->exists($filePath)) {
+        if (! Storage::disk('public')->exists($filePath)) {
             $document->update([
                 'status' => 'failed',
                 'error_message' => 'File tidak ditemukan di storage.',
             ]);
             Log::error("File tidak ditemukan: {$filePath}");
+
             return;
         }
 
@@ -60,7 +61,7 @@ class ProcessDocumentIngest implements ShouldQueue
         // 4. Ambil URL Python dari config
         $pythonUrl = config('services.python_microservice.url', 'http://python-ai:8000');
 
-        Log::info("🚀 Mengirim dokumen ke Python AI", [
+        Log::info('🚀 Mengirim dokumen ke Python AI', [
             'document_id' => $document->id,
             'name' => $document->name,
             'python_url' => $pythonUrl,
@@ -78,10 +79,10 @@ class ProcessDocumentIngest implements ShouldQueue
                     'category_slug' => $categorySlug,
                 ]);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 $document->update([
                     'status' => 'failed',
-                    'error_message' => 'Python API Error: ' . $response->body(),
+                    'error_message' => 'Python API Error: '.$response->body(),
                 ]);
 
                 Log::error('❌ Python Ingest Failed', [
@@ -93,7 +94,7 @@ class ProcessDocumentIngest implements ShouldQueue
                 // Jika Python berhasil, update status
                 $responseData = $response->json();
 
-                // ✅ PERBAIKAN: 
+                // ✅ PERBAIKAN:
                 // Python mengembalikan "success", tapi Enum database butuh "ready".
                 // Kita map manual agar sesuai dengan Enum.
                 $newStatus = 'ready';
@@ -104,7 +105,7 @@ class ProcessDocumentIngest implements ShouldQueue
                     'total_chunks' => $responseData['total_chunks'] ?? 544,
                 ]);
 
-                Log::info("✅ Dokumen berhasil diproses Python", [
+                Log::info('✅ Dokumen berhasil diproses Python', [
                     'document_id' => $document->id,
                     'name' => $document->name,
                     'status' => $newStatus,
@@ -113,7 +114,7 @@ class ProcessDocumentIngest implements ShouldQueue
         } catch (\Exception $e) {
             $document->update([
                 'status' => 'failed',
-                'error_message' => 'Exception: ' . $e->getMessage(),
+                'error_message' => 'Exception: '.$e->getMessage(),
             ]);
 
             Log::error('💥 Exception saat mengirim ke Python', [
@@ -132,7 +133,7 @@ class ProcessDocumentIngest implements ShouldQueue
     {
         $this->document->update([
             'status' => 'failed',
-            'error_message' => 'Job gagal setelah beberapa percobaan: ' . $exception->getMessage(),
+            'error_message' => 'Job gagal setelah beberapa percobaan: '.$exception->getMessage(),
         ]);
 
         Log::error('💀 Job ProcessDocumentIngest gagal total', [

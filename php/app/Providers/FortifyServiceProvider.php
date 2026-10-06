@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Actions\Fortify\ResetUserPassword;
+use App\Http\Controllers\Auth\KeycloakLoginController;
 use App\Models\User;
 use App\Services\PortalPegawaiService;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -163,10 +164,16 @@ class FortifyServiceProvider extends ServiceProvider
     private function configureViews(): void
     {
         Fortify::loginView(function (Request $request) {
+            if ($request->hasAny(['code', 'state', 'error'])) {
+                return app(KeycloakLoginController::class)->callback($request);
+            }
+
             return Inertia::render('auth/login', [
                 'canResetPassword' => Features::enabled(
                     Features::resetPasswords()
                 ),
+                'keycloakEnabled' => app(KeycloakLoginController::class)->keycloak->isConfigured(),
+                'keycloakLoginUrl' => route('keycloak.login'),
                 'status' => $request->session()->get('status'),
             ]);
         });

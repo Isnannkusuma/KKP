@@ -54,4 +54,27 @@ return [
         'base_url' => env('PYTHON_AI_URL', 'http://localhost:8000'),
     ],
 
+    'keycloak' => [
+        'enabled' => env('KEYCLOAK_ENABLED', false),
+        'url' => rtrim(env('KEYCLOAK_URL', 'https://portal-sso.kkp.go.id'), '/'),
+        'realm' => env('KEYCLOAK_REALM', 'kkp'),
+        'issuer' => env(
+            'KEYCLOAK_ISSUER',
+            rtrim(env('KEYCLOAK_URL', 'https://portal-sso.kkp.go.id'), '/')
+                .'/realms/'.env('KEYCLOAK_REALM', 'kkp'),
+        ),
+        'client_id' => env('KEYCLOAK_CLIENT_ID'),
+        'client_secret' => env('KEYCLOAK_CLIENT_SECRET'),
+        'redirect_uri' => env('KEYCLOAK_REDIRECT_URI', env('APP_URL').'/login'),
+        'timeout' => (int) env('KEYCLOAK_TIMEOUT', 10),
+        'state_ttl' => (int) env('KEYCLOAK_STATE_TTL', 300),
+        'pegawai_role_id' => (int) env('KEYCLOAK_PEGAWAI_ROLE_ID', 19),
+    ],
+
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+        'webhook_url' => env('TELEGRAM_WEBHOOK_URL'),
+        'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
+    ],
+
 ];

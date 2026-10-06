@@ -2,10 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\FaqEntry;
 use App\Models\SearchAuditLog;
+use App\Services\Chat\QueryNormalizer;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -19,11 +26,12 @@ class DashboardController extends Controller
         $period = in_array($period, [7, 30, 90], true) ? $period : 30;
         $startDate = now()->subDays($period - 1)->startOfDay();
         $audits = SearchAuditLog::query()->where('created_at', '>=', $startDate);
-        $unanswered = (clone $audits)
-            ->where('response_status', 'unanswered')
-            ->orWhere(function ($query): void {
-                $query->whereNull('response_status')->where('result_count', 0);
-            });
+        $unanswered = (clone $audits)->where(function ($query): void {
+            $query->where('response_status', 'unanswered')
+                ->orWhere(function ($query): void {
+                    $query->whereNull('response_status')->where('result_count', 0);
+                });
+        });
 
         $dailyResults = (clone $audits)
             ->selectRaw('DATE(created_at) as date, COUNT(*) as total, SUM(CASE WHEN response_status = ? THEN 1 ELSE 0 END) as answered, SUM(CASE WHEN response_status = ? THEN 1 ELSE 0 END) as unanswered', ['answered', 'unanswered'])
@@ -40,14 +48,13 @@ class DashboardController extends Controller
             $results = $dailyAnswers->get($dateKey);
 
             return [
+                'date' => $dateKey,
                 'label' => $date->translatedFormat('d M'),
                 'total' => (int) ($dailyResults[$dateKey] ?? 0),
                 'answered' => (int) ($results?->answered ?? 0),
                 'unanswered' => (int) ($results?->unanswered ?? 0),
             ];
         });
-        $feedbackCount = (clone $audits)->whereNotNull('feedback')->count();
-        $positiveFeedback = (clone $audits)->where('feedback', 'positive')->count();
         $contextGroups = (clone $audits)
             ->select(['query', 'response_status'])
             ->latest()
@@ -71,25 +78,122 @@ class DashboardController extends Controller
                 'total' => (clone $audits)->count(),
                 'answered' => (clone $audits)->where('response_status', 'answered')->count(),
                 'unanswered' => (clone $unanswered)->count(),
-                'feedbackCount' => $feedbackCount,
-                'positiveFeedback' => $positiveFeedback,
-                'satisfactionRate' => $feedbackCount === 0 ? 0 : (int) round($positiveFeedback / $feedbackCount * 100),
             ],
             'daily' => $daily,
             'contextGroups' => $contextGroups,
             'popularQuestions' => $popularQuestions,
             'unansweredQuestions' => (clone $unanswered)
-                ->select(['id', 'query', 'answer', 'created_at'])
                 ->latest()
-                ->limit(10)
-                ->get()
-                ->map(fn (SearchAuditLog $audit): array => [
+                ->paginate(10, ['id', 'query', 'answer', 'created_at'], 'unanswered_page')
+                ->through(fn (SearchAuditLog $audit): array => [
                     'id' => $audit->id,
                     'question' => $audit->query,
                     'answer' => $audit->answer,
                     'askedAt' => $audit->created_at?->toIso8601String(),
                 ]),
         ]);
+    }
+
+    /**
+     * Daftar pertanyaan pada satu hari untuk detail bar chart.
+     */
+    public function dayQuestions(Request $request): JsonResponse
+    {
+        $validated = $request->validate(['date' => 'required|date_format:Y-m-d']);
+
+        $questions = SearchAuditLog::query()
+            ->whereDate('created_at', $validated['date'])
+            ->orderBy('created_at')
+            ->get(['id', 'query', 'user_name', 'user_identifier', 'response_status', 'created_at'])
+            ->map(fn (SearchAuditLog $audit): array => [
+                'id' => $audit->id,
+                'question' => $audit->query,
+                'user' => $audit->user_name ?: ($audit->user_identifier ?: 'Anonim'),
+                'status' => $audit->response_status,
+                'askedAt' => $audit->created_at?->toIso8601String(),
+            ]);
+
+        return response()->json(['data' => $questions]);
+    }
+
+    /**
+     * Simpan jawaban manual untuk pertanyaan yang belum terjawab. Jawaban
+     * disimpan sebagai FAQ approved (dipakai chatbot untuk pertanyaan yang
+     * sama) dan log audit ditandai answered.
+     */
+    public function answer(Request $request, SearchAuditLog $auditLog): RedirectResponse
+    {
+        $validated = $request->validate([
+            'answer' => 'required|string|max:5000',
+        ]);
+        $embedding = $this->embedText(QueryNormalizer::normalize($auditLog->query));
+
+        if (empty($embedding)) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => 'Layanan embedding tidak tersedia, jawaban belum disimpan. Silakan coba lagi.']);
+
+            return back();
+        }
+
+        $vector = '['.implode(',', $embedding).']';
+        $answer = trim($validated['answer']);
+        $adminName = $request->user()?->name;
+
+        DB::transaction(function () use ($auditLog, $answer, $vector, $adminName): void {
+            $faq = FaqEntry::firstOrNew(['search_audit_log_id' => $auditLog->id]);
+
+            if (! $faq->exists) {
+                $faq->id = (string) Str::uuid();
+            }
+
+            $faq->fill([
+                'question' => $auditLog->query,
+                'answer' => $answer,
+                'status' => 'approved',
+                'source' => 'manual',
+                'source_count' => 1,
+                'approved_at' => now(),
+                'approved_by' => $adminName,
+            ])->save();
+
+            DB::statement('UPDATE faq_entries SET question_embedding = ?::vector WHERE id = ?', [$vector, $faq->id]);
+
+            $auditLog->update([
+                'answer' => $answer,
+                'response_status' => 'answered',
+                'manual_answered_at' => now(),
+                'manual_answered_by' => $adminName,
+            ]);
+        });
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Jawaban disimpan dan akan dipakai chatbot untuk pertanyaan yang sama.']);
+
+        return back();
+    }
+
+    public function destroyAudit(SearchAuditLog $auditLog): RedirectResponse
+    {
+        FaqEntry::where('search_audit_log_id', $auditLog->id)->delete();
+        $auditLog->delete();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Pertanyaan berhasil dihapus.']);
+
+        return back();
+    }
+
+    private function embedText(string $text): ?array
+    {
+        try {
+            $response = Http::connectTimeout(3)->timeout(15)->post(
+                rtrim(config('services.python_ai.base_url', 'http://localhost:8000'), '/').'/embed/queries',
+                ['queries' => [$text]],
+            );
+
+            return $response->successful() ? $response->json('embeddings.0') : null;
+        } catch (\Throwable $e) {
+            Log::warning('Gagal embed jawaban manual', ['message' => $e->getMessage()]);
+
+            return null;
+        }
     }
 
     public function destroy(Request $request): RedirectResponse

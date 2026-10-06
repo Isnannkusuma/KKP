@@ -146,28 +146,28 @@ export default function Chat({ user }: ChatProps) {
             <Head title="Asisten AI Instansi" />
 
             <Dialog open={loginPrompt.open} onOpenChange={(open) => setLoginPrompt((prev) => ({ ...prev, open }))}>
-                <DialogContent className="w-[calc(100%-2rem)] max-w-[390px] gap-0 overflow-hidden border border-white/20 bg-[#23476d]/95 p-0 text-white shadow-2xl shadow-slate-950/60 backdrop-blur-xl [&>button]:hidden">
+                <DialogContent className="w-[calc(100%-2rem)] max-w-[390px] gap-0 overflow-hidden border border-[#d2e5e6] bg-white p-0 text-[#183746] shadow-2xl shadow-[#123746]/20 [&>button]:hidden">
                     <button
                         type="button"
                         aria-label="Tutup dialog login"
                         onClick={() => setLoginPrompt((prev) => ({ ...prev, open: false }))}
-                        className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full border border-white/15 bg-white/10 text-white/70 transition hover:bg-white/20 hover:text-white"
+                        className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full border border-[#d2e5e6] bg-[#f2f8f8] text-[#52717b] transition hover:bg-[#e3f2f0] hover:text-[#087f82]"
                     >
                         <X className="h-4 w-4" />
                     </button>
                     <DialogHeader className="items-center text-center">
                         <div className="mt-7 flex items-center gap-2 text-sm font-semibold">
-                            <img src="/KKP%20LOGO%203.png" alt="" className="aspect-square h-7 w-7 shrink-0 rounded-full object-contain ring-1 ring-cyan-300/70" />
+                            <img src="/KKP%20LOGO%203.png" alt="" className="aspect-square h-7 w-7 shrink-0 rounded-full object-contain ring-1 ring-[#9bd9d2]" />
                             <span>Layanan AI KKP</span>
                         </div>
-                        <DialogTitle className="mt-5 text-[26px] font-bold tracking-normal text-white">Masuk ke akun Anda</DialogTitle>
-                        <DialogDescription className="mt-1 max-w-[290px] text-sm leading-5 text-blue-100/70">
+                        <DialogTitle className="mt-5 text-[26px] font-bold tracking-normal text-[#183746]">Masuk ke akun Anda</DialogTitle>
+                        <DialogDescription className="mt-1 max-w-[290px] text-sm leading-5 text-[#52717b]">
                             Gunakan NIP dan password untuk mengakses data kepegawaian Anda.
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="px-6 pb-7 pt-5">
-                        <div className="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-center text-xs leading-5 text-blue-50/80">
+                        <div className="rounded-xl border border-[#d8e9e8] bg-[#f2f8f8] px-4 py-3 text-center text-xs leading-5 text-[#365765]">
                             {loginPrompt.message}
                         </div>
                         <Button
@@ -176,7 +176,7 @@ export default function Chat({ user }: ChatProps) {
                                 setLoginPrompt((prev) => ({ ...prev, open: false }));
                                 window.location.href = loginPrompt.redirectTo || '/login';
                             }}
-                            className="mt-5 h-11 w-full rounded-xl bg-white font-semibold text-[#1b52c9] shadow-lg shadow-slate-950/20 hover:bg-blue-50"
+                            className="mt-5 h-11 w-full rounded-xl bg-[#087f82] font-semibold text-white shadow-lg shadow-[#087f82]/20 hover:bg-[#066d70]"
                         >
                             <LogIn className="mr-2 h-4 w-4" /> Masuk
                         </Button>
@@ -184,30 +184,30 @@ export default function Chat({ user }: ChatProps) {
                 </DialogContent>
             </Dialog>
 
-            <div className="h-dvh overflow-hidden bg-[#06192e] p-0 font-sans text-white lg:grid lg:place-items-center lg:p-8">
-                <main className="flex h-full min-h-0 w-full max-w-[1440px] overflow-hidden bg-[#0e4f83]/70 shadow-[0_24px_56px_rgba(0,18,43,0.42)] lg:rounded-[24px] lg:border lg:border-white/20">
-                    <aside className="hidden w-[240px] shrink-0 flex-col border-r border-white/10 bg-[#607991]/55 px-5 py-6 backdrop-blur-sm lg:flex">
-                        <div className="flex flex-col items-center border-b border-white/10 pb-6">
-                            <img src="/KKP%20LOGO%203.png" alt="Kementerian Kelautan dan Perikanan" className="aspect-square h-20 w-20 shrink-0 rounded-full object-contain ring-2 ring-cyan-300/80" />
-                            <span className="mt-3 text-center text-[10px] font-semibold leading-tight text-white/80">KEMENTERIAN<br />KELAUTAN DAN PERIKANAN<br />REPUBLIK INDONESIA</span>
+            <div className="h-dvh overflow-hidden bg-[#edf6f6] p-0 font-sans text-[#183746] lg:grid lg:place-items-center lg:p-8">
+                <main className="flex h-full min-h-0 w-full max-w-[1440px] overflow-hidden bg-white shadow-[0_24px_56px_rgba(16,57,68,0.12)] lg:rounded-[24px] lg:border lg:border-[#d6e7e8]">
+                    <aside className="hidden w-[240px] shrink-0 flex-col border-r border-[#d6e7e8] bg-[#f7fbfb] px-5 py-6 lg:flex">
+                        <div className="flex flex-col items-center border-b border-[#d6e7e8] pb-6">
+                            <img src="/KKP%20LOGO%203.png" alt="Kementerian Kelautan dan Perikanan" className="aspect-square h-20 w-20 shrink-0 rounded-full object-contain ring-2 ring-[#9bd9d2]" />
+                            <span className="mt-3 text-center text-[10px] font-semibold leading-tight text-[#365765]">KEMENTERIAN<br />KELAUTAN DAN PERIKANAN<br />REPUBLIK INDONESIA</span>
                         </div>
                         <div className="relative mt-5">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50" />
-                            <input aria-label="Cari percakapan" placeholder="Cari percakapan" className="h-10 w-full rounded-xl border border-white/20 bg-white/15 pl-9 pr-3 text-xs text-white outline-none placeholder:text-white/60 focus:border-white/45 focus:bg-white/20" />
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b8b91]" />
+                            <input aria-label="Cari percakapan" placeholder="Cari percakapan" className="h-10 w-full rounded-xl border border-[#d6e7e8] bg-white pl-9 pr-3 text-xs text-[#183746] outline-none placeholder:text-[#789197] focus:border-[#66b8b1] focus:bg-white" />
                         </div>
-                        <p className="mt-5 text-[10px] font-semibold tracking-wide text-white/55">PERCAKAPAN</p>
-                        <div className="mt-2 flex items-center gap-3 rounded-2xl border border-white/15 bg-white/15 px-3 py-3 shadow-sm shadow-[#163754]/20">
-                            <div className="grid h-9 w-9 place-items-center rounded-full bg-white/15"><Bot className="h-4 w-4" /></div>
-                            <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">Asisten AI</p><p className="truncate text-[10px] text-white/55">Siap membantu Anda</p></div>
-                            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                        <p className="mt-5 text-[10px] font-semibold tracking-wide text-[#66838a]">PERCAKAPAN</p>
+                        <div className="mt-2 flex items-center gap-3 rounded-2xl border border-[#cfe5e3] bg-[#eaf5f3] px-3 py-3 shadow-sm shadow-[#123746]/5">
+                            <div className="grid h-9 w-9 place-items-center rounded-full bg-white text-[#078589]"><Bot className="h-4 w-4" /></div>
+                            <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">Asisten AI</p><p className="truncate text-[10px] text-[#66838a]">Siap membantu Anda</p></div>
+                            <span className="h-2 w-2 rounded-full bg-[#17a58f]" />
                         </div>
                         {user && (
-                            <div className="mt-auto border-t border-white/10 pt-5">
+                            <div className="mt-auto border-t border-[#d6e7e8] pt-5">
                                 <Link
                                     href={logout()}
                                     as="button"
                                     onClick={handleLogout}
-                                    className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 text-xs font-semibold text-white transition hover:bg-white/20"
+                                    className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#cbdfe1] bg-white text-xs font-semibold text-[#183746] transition hover:bg-[#edf7f6]"
                                 >
                                     <LogOut className="h-4 w-4" /> Keluar
                                 </Link>
@@ -215,23 +215,23 @@ export default function Chat({ user }: ChatProps) {
                         )}
                     </aside>
 
-                    <section className="flex min-h-0 min-w-0 flex-1 flex-col bg-[radial-gradient(circle_at_top_right,_#3b94cb_0,_#2675aa_42%,_#1c5988_100%)] p-4 sm:p-6 lg:p-5">
+                    <section className="flex min-h-0 min-w-0 flex-1 flex-col bg-[radial-gradient(circle_at_top_right,_#dff3f0_0,_#eff7f7_42%,_#f7faf9_100%)] p-4 sm:p-6 lg:p-5">
                         <header className="flex items-center justify-between px-1 pb-5">
-                            <div className="flex items-center gap-2"><img src="/KKP%20LOGO%203.png" alt="" className="aspect-square h-7 w-7 shrink-0 rounded-full object-contain ring-1 ring-cyan-200/80" /><h1 className="text-sm font-semibold">Layanan AI KKP</h1></div>
+                            <div className="flex items-center gap-2"><img src="/KKP%20LOGO%203.png" alt="" className="aspect-square h-7 w-7 shrink-0 rounded-full object-contain ring-1 ring-[#9bd9d2]" /><h1 className="text-sm font-semibold text-[#183746]">Layanan AI KKP</h1></div>
                             <div className="flex items-center gap-2">
-                                <div className="flex items-center gap-2 rounded-full bg-white/15 py-2 pl-3 pr-2 text-[11px] font-medium text-white/90"><UserRound className="h-3.5 w-3.5" /> {userLabel}</div>
+                                <div className="flex items-center gap-2 rounded-full border border-[#d6e7e8] bg-white/80 py-2 pl-3 pr-2 text-[11px] font-medium text-[#365765]"><UserRound className="h-3.5 w-3.5 text-[#078589]" /> {userLabel}</div>
                                 {!user && (
                                     <Link
                                         href={login()}
-                                        className="flex h-8 items-center gap-1.5 rounded-lg border border-white/25 bg-white/10 px-3 text-[11px] font-semibold text-white transition hover:bg-white/20"
+                                        className="flex h-8 items-center gap-1.5 rounded-lg border border-[#cbdfe1] bg-white px-3 text-[11px] font-semibold text-[#087f82] transition hover:bg-[#edf7f6]"
                                     >
                                         <LogIn className="h-3.5 w-3.5" /> Masuk
                                     </Link>
                                 )}
                             </div>
                         </header>
-                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-white/20 bg-[#326b94]/80 shadow-[inset_0_1px_rgba(255,255,255,0.08)]">
-                            <div className="flex items-center justify-between px-5 py-4 text-xs"><h2 className="font-semibold">Percakapan terbaru</h2><span className="text-white/55">Saat ini</span></div>
+                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[#d6e7e8] bg-white/85 shadow-[0_12px_32px_rgba(16,57,68,0.06)]">
+                            <div className="flex items-center justify-between px-5 py-4 text-xs"><h2 className="font-semibold text-[#183746]">Percakapan terbaru</h2><span className="text-[#789197]">Saat ini</span></div>
                             <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-5">
                                 <div className="mx-auto max-w-3xl py-2">
                         {messages.length === 0 ? (
@@ -244,14 +244,14 @@ export default function Chat({ user }: ChatProps) {
 
                                 {isLoading && (
                                     <div className="mb-6 flex gap-3">
-                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e6f3f1] text-[#078589]">
                                             <div className="gap-1 flex">
-                                                <div className="h-2 w-2 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                                                <div className="h-2 w-2 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                                                <div className="h-2 w-2 bg-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                                                <div className="h-2 w-2 rounded-full bg-[#078589]/60 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                                                <div className="h-2 w-2 rounded-full bg-[#078589]/60 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                                <div className="h-2 w-2 rounded-full bg-[#078589]/60 animate-bounce" style={{ animationDelay: '300ms' }}></div>
                                             </div>
                                         </div>
-                                        <div className="rounded-2xl rounded-tl-sm bg-white/90 px-4 py-3 text-sm text-[#1c5bc5]">
+                                        <div className="rounded-2xl rounded-tl-sm border border-[#d6e7e8] bg-white px-4 py-3 text-sm text-[#183746]">
                                             Sedang mencari informasi dan merangkum jawaban...
                                         </div>
                                     </div>
@@ -261,7 +261,7 @@ export default function Chat({ user }: ChatProps) {
                         )}
                                 </div>
                             </div>
-                            <div className="border-t border-white/10 bg-[#3c7196]/75 p-3 sm:p-4">
+                            <div className="border-t border-[#d6e7e8] bg-[#f7fbfb] p-3 sm:p-4">
                                 <div className="mx-auto max-w-3xl"><ChatInput onSend={handleSendMessage} isLoading={isLoading} /></div>
                             </div>
                         </div>

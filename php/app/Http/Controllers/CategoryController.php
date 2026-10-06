@@ -14,8 +14,8 @@ class CategoryController extends Controller
         $query = Category::withCount('documents');
 
         if ($request->filled('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%')
-                ->orWhere('slug', 'like', '%' . $request->search . '%');
+            $query->where('name', 'like', '%'.$request->search.'%')
+                ->orWhere('slug', 'like', '%'.$request->search.'%');
         }
 
         $categories = $query->latest()->paginate(10);
@@ -52,8 +52,8 @@ class CategoryController extends Controller
     public function update(Request $request, Category $category)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:categories,name,' . $category->id,
-            'slug' => 'nullable|string|max:255|unique:categories,slug,' . $category->id,
+            'name' => 'required|string|max:255|unique:categories,name,'.$category->id,
+            'slug' => 'nullable|string|max:255|unique:categories,slug,'.$category->id,
             'description' => 'nullable|string|max:1000',
         ]);
 
@@ -73,7 +73,7 @@ class CategoryController extends Controller
 
         if ($documentCount > 0) {
             return back()->withErrors([
-                'error' => "Kategori tidak dapat dihapus karena masih digunakan oleh {$documentCount} dokumen. (Catatan: Jika dipaksa hapus, kategori pada dokumen tersebut akan menjadi kosong/null)."
+                'error' => "Kategori tidak dapat dihapus karena masih digunakan oleh {$documentCount} dokumen. (Catatan: Jika dipaksa hapus, kategori pada dokumen tersebut akan menjadi kosong/null).",
             ]);
         }
 

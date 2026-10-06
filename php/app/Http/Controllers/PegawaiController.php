@@ -24,7 +24,7 @@ class PegawaiController extends Controller
 
         $pegawai = Pegawai::where('nip', $user->nip)->first();
 
-        if (!$pegawai) {
+        if (! $pegawai) {
             return response()->json([
                 'message' => 'Data pegawai dengan NIP tersebut tidak ditemukan.',
             ], 404);

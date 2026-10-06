@@ -1,9 +1,23 @@
+import re
+
+
 INDONESIAN_STOPWORDS = {
         'apa', 'itu', 'ini', 'yang', 'dan', 'di', 'ke', 'dari', 'untuk',
         'adalah', 'dengan', 'pada', 'atau', 'juga', 'akan', 'bisa', 'ada',
         'saya', 'kamu', 'anda', 'kami', 'mereka', 'dia', 'nya', 'sih', 'kah',
         'apakah', 'bagaimana', 'mengapa', 'kenapa', 'siapa', 'kapan', 'dimana',
 }
+
+
+def normalize_asn_cpns_query(query_text: str) -> str:
+    query_text = re.sub(
+        r"(?<![\w])(?:asn[\s-]+cpns|cpns[\s-]+asn|asn|cpns)(?![\w])",
+        "asn cpns",
+        query_text.strip(),
+        flags=re.IGNORECASE,
+    )
+    return query_text.lower()
+
 
 def clean_query_for_keyword_search(query_text: str) -> str:
     words = query_text.lower().split()

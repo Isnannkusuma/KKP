@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -47,10 +47,10 @@ return new class extends Migration
         // B. Buat Index GIN agar pencarian keyword (BM25-like) sangat cepat
         DB::statement('CREATE INDEX document_chunks_search_idx ON document_chunks USING gin (search_vector)');
 
-        // C. Buat Trigger Otomatis: 
-        // Setiap kali ada INSERT atau UPDATE pada kolom 'content', 
+        // C. Buat Trigger Otomatis:
+        // Setiap kali ada INSERT atau UPDATE pada kolom 'content',
         // kolom 'search_vector' akan otomatis ter-generate.
-        // PENTING: 'pg_catalog.simple' digunakan agar angka dan simbol (seperti "No. 123" atau "VII/2024") 
+        // PENTING: 'pg_catalog.simple' digunakan agar angka dan simbol (seperti "No. 123" atau "VII/2024")
         // TIDAK dihapus oleh stemmer, sehingga pencarian nomor surat tetap akurat.
         DB::statement("
             CREATE TRIGGER tsvector_update 

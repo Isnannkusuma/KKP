@@ -18,6 +18,8 @@ class SearchAuditLog extends Model
         'response_status',
         'feedback',
         'feedback_at',
+        'manual_answered_at',
+        'manual_answered_by',
         'result_count',
         'result_document_ids',
         'access_level_used',
@@ -29,5 +31,6 @@ class SearchAuditLog extends Model
         'result_count' => 'integer',
         'result_document_ids' => 'array',
         'feedback_at' => 'datetime',
+        'manual_answered_at' => 'datetime',
     ];
 }

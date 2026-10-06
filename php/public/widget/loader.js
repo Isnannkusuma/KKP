@@ -23,7 +23,7 @@
     bubble.innerHTML = '💬';
     bubble.style.cssText = [
         'position:fixed', 'bottom:20px', 'right:20px', 'width:56px', 'height:56px',
-        'border-radius:50%', 'background:#2563eb', 'color:white', 'border:none',
+        'border-radius:50%', 'background:#2d898d', 'color:white', 'border:none',
         'font-size:24px', 'cursor:pointer', 'box-shadow:0 4px 14px rgba(0,0,0,0.25)',
         'z-index:999999', 'display:flex', 'align-items:center', 'justify-content:center',
     ].join(';');
@@ -38,7 +38,8 @@
     ].join(';');
 
     var iframe = document.createElement('iframe');
-    iframe.src = API_ORIGIN + '/widget/chat.html?widget_key=' + encodeURIComponent(widgetKey);
+    var CHAT_HTML_VERSION = '2'; // naikkan angka ini tiap kali chat.html diupdate, supaya cache browser tidak nyangkut
+    iframe.src = API_ORIGIN + '/widget/chat.html?widget_key=' + encodeURIComponent(widgetKey) + '&v=' + CHAT_HTML_VERSION;
     iframe.style.cssText = 'width:100%;height:100%;border:none;';
     iframe.setAttribute('title', 'Asisten Chat');
     container.appendChild(iframe);
@@ -84,4 +85,8 @@
             if (isOpen) toggle();
         },
     };
+
+    // Beri tahu halaman yang memasang widget bahwa KkpChatWidget sudah siap
+    // dipakai (misal untuk memanggil setIdentity() dengan aman).
+    window.dispatchEvent(new CustomEvent('kkp-chat-widget-ready'));
 })();

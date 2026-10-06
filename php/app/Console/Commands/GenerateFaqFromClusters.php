@@ -200,7 +200,7 @@ class GenerateFaqFromClusters extends Command
         // sekaligus (yang berujung jawaban ngelantur/terpotong).
         $limitedSample = collect(explode("\n\n", $sampleQaText))->take(10)->implode("\n\n");
 
-        $prompt = "Berikut kumpulan pertanyaan dari pengguna yang topiknya mirip, beserta jawaban "
+        $prompt = 'Berikut kumpulan pertanyaan dari pengguna yang topiknya mirip, beserta jawaban '
             ."yang pernah diberikan sebelumnya:\n\n{$limitedSample}\n\n"
             .'Tugas Anda: buat SATU pertanyaan FAQ yang paling mewakili semua pertanyaan di atas, '
             .'dan SATU jawaban final yang jelas, akurat, dan RINGKAS (maksimal 100 kata) yang '

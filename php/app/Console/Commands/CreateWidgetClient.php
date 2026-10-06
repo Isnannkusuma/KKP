@@ -6,7 +6,7 @@ use App\Models\WidgetClient;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
-class CreateWidgetClient extends Command 
+class CreateWidgetClient extends Command
 {
     protected $signature = 'widget:create
         {name : Nama situs, misal "Portal SDMAO"}
@@ -55,7 +55,7 @@ class CreateWidgetClient extends Command
 
         $this->newLine();
         $this->comment('Kode embed untuk dipasang di situs mereka:');
-        $this->line("<script src=\"".config('app.url')."/widget/loader.js\" data-widget-key=\"{$client->widget_key}\" async></script>");
+        $this->line('<script src="'.config('app.url')."/widget/loader.js\" data-widget-key=\"{$client->widget_key}\" async></script>");
 
         return self::SUCCESS;
     }
