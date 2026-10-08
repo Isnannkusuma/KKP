@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ApiService;
+use App\Models\ChatConversation;
+use App\Models\ChatMessage;
 use App\Models\Document;
 use App\Models\Pegawai;
 use App\Models\SearchAuditLog;
@@ -17,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class ChatController extends Controller
 {
@@ -66,14 +69,52 @@ class ChatController extends Controller
      * Hanya user yang sudah login yang dapat
      * mengakses method ini.
      */
-    public function index(Request $request)
+    public function index(Request $request, ?string $conversation = null)
     {
         $user = $request->user();
+
+        $conversations = $user
+            ? ChatConversation::query()
+                ->where('user_id', $user->id)
+                ->orderByDesc('last_message_at')
+                ->limit(100)
+                ->get(['id', 'title', 'last_message_at'])
+                ->map(fn (ChatConversation $item): array => [
+                    'id' => $item->id,
+                    'title' => $item->title ?: 'Percakapan baru',
+                    'last_message_at' => $item->last_message_at?->toIso8601String(),
+                ])
+            : [];
+
+        $activeConversation = null;
+
+        if ($user && $conversation !== null) {
+            $found = ChatConversation::query()
+                ->where('user_id', $user->id)
+                ->whereKey($conversation)
+                ->firstOrFail();
+
+            $activeConversation = [
+                'id' => $found->id,
+                'messages' => $found->messages()->orderBy('id')->get()->map(fn (ChatMessage $message): array => [
+                    'id' => (string) $message->id,
+                    'role' => $message->role,
+                    'content' => $message->content,
+                    'sources' => $message->meta['sources'] ?? [],
+                    'auditId' => $message->meta['audit_id'] ?? null,
+                    'feedback' => $message->meta['feedback'] ?? null,
+                    'created_at' => $message->created_at?->toIso8601String(),
+                ])->all(),
+            ];
+        }
+
         $pegawai = $user?->nip
             ? Pegawai::query()->where('nip', $user->nip)->first()
             : null;
 
         return inertia('chat/index', [
+            'conversations' => $conversations,
+            'activeConversation' => $activeConversation,
             'user' => $user ? [
                 'name' => $user->name,
                 'nip' => $user->nip,
@@ -110,6 +151,7 @@ class ChatController extends Controller
                 'history' => 'nullable|array',
                 'history.*.role' => 'nullable|in:user,assistant',
                 'history.*.content' => 'nullable|string',
+                'conversation_id' => 'nullable|uuid',
             ]);
 
             $userMessage = $request->input('message');
@@ -659,6 +701,9 @@ class ChatController extends Controller
             'feedback_at' => now(),
         ]);
 
+        $message = ChatMessage::query()->where('meta->audit_id', $auditLog->id)->first();
+        $message?->update(['meta' => [...($message->meta ?? []), 'feedback' => $validated['feedback']]]);
+
         return response()->json(['feedback' => $auditLog->feedback]);
     }
 
@@ -699,11 +744,52 @@ class ChatController extends Controller
             Log::warning('Gagal mencatat audit chatbot', ['message' => $exception->getMessage()]);
         }
 
+        $finalAnswer = $this->withGreeting($answer, $this->resolveUserModel($request));
+
         return response()->json([
-            'answer' => $this->withGreeting($answer, $this->resolveUserModel($request)),
+            'answer' => $finalAnswer,
             'sources' => $sources,
             'audit_id' => $auditId,
+            'conversation_id' => $this->storeConversationTurn($request, $question, $finalAnswer, $sources, $auditId, $status),
         ], $httpStatus);
+    }
+
+    /**
+     * Simpan satu pasang pertanyaan-jawaban ke riwayat percakapan.
+     * Hanya untuk user yang login lewat sesi web (bukan tamu/widget).
+     * Mengembalikan id percakapan, atau null kalau tidak disimpan.
+     */
+    protected function storeConversationTurn(Request $request, string $question, string $answer, array $sources, ?string $auditId, string $status): ?string
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            return null;
+        }
+
+        try {
+            $conversationId = $request->input('conversation_id');
+            $conversation = is_string($conversationId)
+                ? ChatConversation::query()->where('user_id', $user->id)->whereKey($conversationId)->first()
+                : null;
+
+            $conversation ??= ChatConversation::create([
+                'user_id' => $user->id,
+                'title' => Str::limit(trim($question), 60, '...'),
+            ]);
+
+            $conversation->messages()->createMany([
+                ['role' => 'user', 'content' => $question],
+                ['role' => 'assistant', 'content' => $answer, 'meta' => ['sources' => $sources, 'audit_id' => $auditId]],
+            ]);
+            $conversation->update(['last_message_at' => now()]);
+
+            return $conversation->id;
+        } catch (\Throwable $exception) {
+            Log::warning('Gagal menyimpan riwayat chat', ['message' => $exception->getMessage()]);
+
+            return null;
+        }
     }
 
     /**

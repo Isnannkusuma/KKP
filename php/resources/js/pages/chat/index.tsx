@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Bot, LogIn, LogOut, Search, UserRound, X } from 'lucide-react';
+import { Bot, LogIn, LogOut, MessageSquarePlus, Search, Trash2, UserRound, X } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import ChatInput from '@/components/chat/chat-input';
 import ChatMessage from '@/components/chat/chat-message';
@@ -10,15 +10,28 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { login, logout } from '@/routes';
 import type { ChatMessage as ChatMessageType } from '@/types';
 
+interface ConversationItem {
+    id: string;
+    title: string;
+    last_message_at: string | null;
+}
+
 interface ChatProps {
+    conversations?: ConversationItem[];
+    activeConversation?: { id: string; messages: ChatMessageType[] } | null;
     user: {
         name: string;
         gender?: string | null;
     } | null;
 }
 
-export default function Chat({ user }: ChatProps) {
-    const [messages, setMessages] = useState<ChatMessageType[]>([]);
+const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+function ChatPage({ user, conversations = [], activeConversation = null }: ChatProps) {
+    const [messages, setMessages] = useState<ChatMessageType[]>(activeConversation?.messages ?? []);
+    const [conversationId, setConversationId] = useState<string | null>(activeConversation?.id ?? null);
+    const [search, setSearch] = useState('');
+    const [pendingDelete, setPendingDelete] = useState<ConversationItem | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [loginPrompt, setLoginPrompt] = useState<{ open: boolean; message: string; redirectTo: string }>({
         open: false,
@@ -28,6 +41,34 @@ export default function Chat({ user }: ChatProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const isMale = ['laki', 'laki-laki', 'male'].includes(user?.gender?.toLowerCase() ?? '');
     const userLabel = user ? `${isMale ? 'Bapak' : 'Ibu'} ${user.name}` : 'Bapak/Ibu';
+
+    const filteredConversations = conversations.filter((item) => item.title.toLowerCase().includes(search.trim().toLowerCase()));
+
+    const handleDeleteConversation = async () => {
+        if (!pendingDelete) {
+            return;
+        }
+
+        const target = pendingDelete;
+        setPendingDelete(null);
+
+        const response = await fetch(`/chat/c/${target.id}`, {
+            method: 'DELETE',
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken() },
+        });
+
+        if (!response.ok) {
+            alert('Gagal menghapus percakapan. Silakan coba lagi.');
+
+            return;
+        }
+
+        if (target.id === conversationId) {
+            router.visit('/chat');
+        } else {
+            router.reload({ only: ['conversations'] });
+        }
+    };
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -73,11 +114,12 @@ export default function Chat({ user }: ChatProps) {
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    'X-CSRF-TOKEN': csrfToken(),
                 },
                 body: JSON.stringify({
                     message: content,
                     history: historyForRequest,
+                    conversation_id: conversationId,
                 }),
             });
 
@@ -113,6 +155,15 @@ export default function Chat({ user }: ChatProps) {
                     created_at: new Date().toISOString(),
                 };
                 setMessages((prev) => [...prev, aiMsg]);
+
+                if (user && data.conversation_id) {
+                    if (data.conversation_id !== conversationId) {
+                        setConversationId(data.conversation_id);
+                        window.history.replaceState(window.history.state, '', `/chat/c/${data.conversation_id}`);
+                    }
+
+                    router.reload({ only: ['conversations'] });
+                }
             }
         } catch (error) {
             console.error('Chat error:', error);
@@ -132,7 +183,7 @@ export default function Chat({ user }: ChatProps) {
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    'X-CSRF-TOKEN': csrfToken(),
                 },
                 body: JSON.stringify({ feedback }),
             });
@@ -184,6 +235,21 @@ export default function Chat({ user }: ChatProps) {
                 </DialogContent>
             </Dialog>
 
+            <Dialog open={pendingDelete !== null} onOpenChange={(open) => !open && setPendingDelete(null)}>
+                <DialogContent className="max-w-[360px]">
+                    <DialogHeader>
+                        <DialogTitle>Hapus percakapan?</DialogTitle>
+                        <DialogDescription>
+                            Percakapan &quot;{pendingDelete?.title}&quot; beserta seluruh pesannya akan dihapus permanen.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={() => setPendingDelete(null)}>Batal</Button>
+                        <Button type="button" variant="destructive" onClick={() => void handleDeleteConversation()}>Hapus</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             <div className="h-dvh overflow-hidden bg-[#edf6f6] p-0 font-sans text-[#183746] lg:grid lg:place-items-center lg:p-8">
                 <main className="flex h-full min-h-0 w-full max-w-[1440px] overflow-hidden bg-white shadow-[0_24px_56px_rgba(16,57,68,0.12)] lg:rounded-[24px] lg:border lg:border-[#d6e7e8]">
                     <aside className="hidden w-[240px] shrink-0 flex-col border-r border-[#d6e7e8] bg-[#f7fbfb] px-5 py-6 lg:flex">
@@ -193,14 +259,45 @@ export default function Chat({ user }: ChatProps) {
                         </div>
                         <div className="relative mt-5">
                             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b8b91]" />
-                            <input aria-label="Cari percakapan" placeholder="Cari percakapan" className="h-10 w-full rounded-xl border border-[#d6e7e8] bg-white pl-9 pr-3 text-xs text-[#183746] outline-none placeholder:text-[#789197] focus:border-[#66b8b1] focus:bg-white" />
+                            <input value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Cari percakapan" placeholder="Cari percakapan" className="h-10 w-full rounded-xl border border-[#d6e7e8] bg-white pl-9 pr-3 text-xs text-[#183746] outline-none placeholder:text-[#789197] focus:border-[#66b8b1] focus:bg-white" />
                         </div>
-                        <p className="mt-5 text-[10px] font-semibold tracking-wide text-[#66838a]">PERCAKAPAN</p>
-                        <div className="mt-2 flex items-center gap-3 rounded-2xl border border-[#cfe5e3] bg-[#eaf5f3] px-3 py-3 shadow-sm shadow-[#123746]/5">
-                            <div className="grid h-9 w-9 place-items-center rounded-full bg-white text-[#078589]"><Bot className="h-4 w-4" /></div>
-                            <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">Asisten AI</p><p className="truncate text-[10px] text-[#66838a]">Siap membantu Anda</p></div>
-                            <span className="h-2 w-2 rounded-full bg-[#17a58f]" />
-                        </div>
+                        {user ? (
+                            <>
+                                <Link href="/chat" onClick={() => {
+ setMessages([]); setConversationId(null); 
+}} className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#087f82] text-xs font-semibold text-white transition hover:bg-[#066d70]">
+                                    <MessageSquarePlus className="h-4 w-4" /> Chat baru
+                                </Link>
+                                <p className="mt-5 text-[10px] font-semibold tracking-wide text-[#66838a]">RIWAYAT</p>
+                                <div className="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto">
+                                    {filteredConversations.length === 0 && (
+                                        <p className="px-1 text-[11px] text-[#789197]">{conversations.length === 0 ? 'Belum ada riwayat percakapan.' : 'Percakapan tidak ditemukan.'}</p>
+                                    )}
+                                    {filteredConversations.map((item) => (
+                                        <div key={item.id} className={`group flex items-center gap-1 rounded-xl border px-3 py-2.5 ${item.id === conversationId ? 'border-[#cfe5e3] bg-[#eaf5f3]' : 'border-transparent hover:bg-[#eef6f6]'}`}>
+                                            <Link href={`/chat/c/${item.id}`} className="min-w-0 flex-1 truncate text-xs font-medium text-[#183746]" title={item.title}>{item.title}</Link>
+                                            <button
+                                                type="button"
+                                                aria-label={`Hapus percakapan ${item.title}`}
+                                                onClick={() => setPendingDelete(item)}
+                                                className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-[#789197] opacity-0 transition hover:bg-white hover:text-red-600 focus:opacity-100 group-hover:opacity-100"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <p className="mt-5 text-[10px] font-semibold tracking-wide text-[#66838a]">PERCAKAPAN</p>
+                                <div className="mt-2 flex items-center gap-3 rounded-2xl border border-[#cfe5e3] bg-[#eaf5f3] px-3 py-3 shadow-sm shadow-[#123746]/5">
+                                    <div className="grid h-9 w-9 place-items-center rounded-full bg-white text-[#078589]"><Bot className="h-4 w-4" /></div>
+                                    <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">Asisten AI</p><p className="truncate text-[10px] text-[#66838a]">Masuk untuk menyimpan riwayat</p></div>
+                                    <span className="h-2 w-2 rounded-full bg-[#17a58f]" />
+                                </div>
+                            </>
+                        )}
                         {user && (
                             <div className="mt-auto border-t border-[#d6e7e8] pt-5">
                                 <Link
@@ -270,6 +367,11 @@ export default function Chat({ user }: ChatProps) {
             </div>
         </>
     );
+}
+
+export default function Chat(props: ChatProps) {
+    // key memastikan state chat di-reset saat berpindah antar percakapan
+    return <ChatPage key={props.activeConversation?.id ?? 'new'} {...props} />;
 }
 
 Chat.layout = (page: any) => page;

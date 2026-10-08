@@ -31,14 +31,20 @@ test('keycloak login redirects using the configured callback URL', function (): 
         ]),
     ]);
 
-    $response = $this->get(route('keycloak.login'));
+    $response = $this->get('https://csai.example.test/login/keycloak');
 
     $response->assertRedirectContains('https://keycloak.example.test/authorize')
         ->assertRedirectContains('redirect_uri=https%3A%2F%2Fcsai.example.test%2Flogin')
         ->assertRedirectContains('code_challenge_method=S256');
 });
 
-test('only users with employee role 19 can log in through keycloak', function (): void {
+test('keycloak login canonicalizes the host before starting the SSO session', function (): void {
+    $response = $this->get('https://csai.sdmao-kkp.example.test/login/keycloak');
+
+    $response->assertRedirect('https://csai.example.test/login/keycloak');
+});
+
+test('keycloak login redirects employee users directly to chat', function (): void {
     $user = User::factory()->create([
         'nip' => '198001012006041001',
         'id_roles' => 19,
@@ -55,6 +61,7 @@ test('only users with employee role 19 can log in through keycloak', function ()
     ]);
 
     $response = $this->withSession([
+        'url.intended' => '/login',
         'keycloak.pending' => [
             'state' => 'state-123',
             'verifier' => str_repeat('v', 96),

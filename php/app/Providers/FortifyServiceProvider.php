@@ -69,6 +69,24 @@ class FortifyServiceProvider extends ServiceProvider
                 return null;
             }
 
+            $user = User::where('nip', $nip)->first();
+
+            if ($user && Hash::check($password, $user->password)) {
+                return $user;
+            }
+
+            if ($user) {
+                return null;
+            }
+
+            /*
+             * Legacy fallback: password default adalah NIP untuk user yang belum
+             * mempunyai akun Laravel atau masih memakai pola lama.
+             */
+            if ($password !== $nip) {
+                return null;
+            }
+
             /*
              * Cari pegawai berdasarkan NIP
              * Database: siantar
@@ -79,20 +97,6 @@ class FortifyServiceProvider extends ServiceProvider
                 ->table('m_peg')
                 ->where('nip', $nip)
                 ->first();
-
-            $user = User::where('nip', $nip)->first();
-
-            if ($user && Hash::check($password, $user->password)) {
-                return $user;
-            }
-
-            /*
-             * Legacy fallback: password default adalah NIP untuk user yang belum
-             * mempunyai akun Laravel atau masih memakai pola lama.
-             */
-            if (! $user && $password !== $nip) {
-                return null;
-            }
 
             $portalData = null;
 
@@ -120,29 +124,16 @@ class FortifyServiceProvider extends ServiceProvider
             ]);
 
             /*
-             * Cari akun Laravel berdasarkan NIP.
-             */
-            $user = $user ?: User::where('nip', $nip)->first();
-
-            /*
              * Jika belum mempunyai akun Laravel,
              * buat akun secara otomatis.
              */
-            if (! $user) {
-                $user = User::create([
-                    'name' => $pegawaiData['nama'] ?? 'Pegawai',
-                    'nip' => $pegawaiData['nip'] ?? $nip,
-                    'email' => $nip.'@pegawai.local',
-                    'password' => Hash::make($nip),
-                    'role' => 'user',
-                ]);
-            }
-
-            /*
-             * Jika akun sudah ada, jangan mengubah
-             * password atau role yang sudah tersimpan.
-             */
-            return $user;
+            return User::create([
+                'name' => $pegawaiData['nama'] ?? 'Pegawai',
+                'nip' => $pegawaiData['nip'] ?? $nip,
+                'email' => $nip.'@pegawai.local',
+                'password' => Hash::make($nip),
+                'role' => 'user',
+            ]);
         });
     }
 

@@ -4,23 +4,33 @@ use App\Http\Controllers\ApiServiceController;
 use App\Http\Controllers\Auth\KeycloakLoginController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\ChatConversationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\FaqReviewController;
 use App\Http\Controllers\PegawaiController;
+use App\Services\KeycloakAuthenticationService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/chat')->name('home');
 
+/*
+|--------------------------------------------------------------------------
+| LOGIN SSO KEYCLOAK
+|--------------------------------------------------------------------------
+| Catatan: redirect_uri yang terdaftar di Keycloak adalah /login, yang
+| diteruskan ke callback() oleh Fortify::loginView (FortifyServiceProvider).
+| Rute /login/keycloak/callback di bawah ini hanya cadangan.
+*/
 Route::get('/login/keycloak', [KeycloakLoginController::class, 'redirect'])
     ->middleware(['guest', 'throttle:login'])
     ->name('keycloak.login');
 
-/*
-|--------------------------------------------------------------------------
-| USER YANG SUDAH LOGIN
-|--------------------------------------------------------------------------
-*/
+Route::get('/login/keycloak/callback', [KeycloakLoginController::class, 'callback'])
+    ->middleware(['guest', 'throttle:login'])
+    ->name('keycloak.callback');
 
 // ==========================================
 // CHATBOT AI
@@ -30,6 +40,18 @@ Route::get('/login/keycloak', [KeycloakLoginController::class, 'redirect'])
 Route::get('/chat', [ChatController::class, 'index'])
     ->name('chat.index');
 
+Route::get('/chat/c/{conversation}', [ChatController::class, 'index'])
+    ->middleware('auth')
+    ->name('chat.show');
+
+Route::delete('/chat/c/{conversation}', [ChatConversationController::class, 'destroy'])
+    ->middleware('auth')
+    ->name('chat.conversations.destroy');
+
+Route::delete('/chat/conversations', [ChatConversationController::class, 'destroyAll'])
+    ->middleware('auth')
+    ->name('chat.conversations.destroy-all');
+
 Route::post('/chat/process', [ChatController::class, 'process'])
     ->name('chat.process')
     ->middleware('throttle:20,1');
@@ -38,19 +60,37 @@ Route::post('/chat/audits/{auditLog}/feedback', [ChatController::class, 'feedbac
     ->name('chat.feedback')
     ->middleware('throttle:30,1');
 
+/*
+|--------------------------------------------------------------------------
+| USER YANG SUDAH LOGIN
+|--------------------------------------------------------------------------
+*/
 Route::middleware('auth')->group(function () {
+
+    // ==========================================
+    // LOGOUT (Laravel + sesi SSO Keycloak)
+    // ==========================================
+    Route::post('/logout/keycloak', function (Request $request, KeycloakAuthenticationService $keycloak) {
+        $url = $keycloak->logoutUrl();
+
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return $url
+            ? redirect()->away($url)
+            : redirect()->route('chat.index');
+    })->name('logout.keycloak');
 
     // ==========================================
     // DATA PEGAWAI
     // ==========================================
-
     Route::get('/pegawai/me', [PegawaiController::class, 'me'])
         ->name('pegawai.me');
 
     // ==========================================
     // ADMIN ONLY
     // ==========================================
-
     Route::middleware('role:admin')->group(function () {
 
         Route::get('/dashboard', DashboardController::class)

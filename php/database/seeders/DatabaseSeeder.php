@@ -24,10 +24,10 @@ class DatabaseSeeder extends Seeder
         // ]);
 
         User::updateOrCreate(
-            ['email' => 'admin@gmail.com'],
+            ['nip' => '123456789123456789'],
             [
                 'name' => 'Admin',
-                'nip' => '123456789123456789',
+                'email' => 'admin@gmail.com',
                 'password' => Hash::make('admin'),
                 'role' => 'admin',
             ]
