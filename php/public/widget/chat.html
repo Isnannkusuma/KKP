@@ -387,6 +387,38 @@
                 return el;
             }
 
+            function showHandoverPopup(handover) {
+                if (!handover || !/^https:\/\/wa\.me\//.test(handover.whatsapp_url || '')) return;
+
+                var overlay = document.createElement('div');
+                overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:9999';
+                var box = document.createElement('div');
+                box.style.cssText = 'background:#fff;border-radius:12px;padding:18px;max-width:320px;font-size:14px;color:#183746;box-shadow:0 10px 30px rgba(0,0,0,.2)';
+                var title = document.createElement('strong');
+                title.textContent = 'Hubungi Admin via WhatsApp';
+                var text = document.createElement('p');
+                text.textContent = handover.message || '';
+                var link = document.createElement('a');
+                link.href = handover.whatsapp_url;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.textContent = 'Chat WhatsApp ' + (handover.whatsapp_number || '');
+                link.style.cssText = 'display:block;text-align:center;background:#078589;color:#fff;padding:10px;border-radius:8px;text-decoration:none;font-weight:600;margin-bottom:8px';
+                var close = document.createElement('button');
+                close.type = 'button';
+                close.textContent = 'Nanti saja';
+                close.style.cssText = 'width:100%;padding:8px;border:1px solid #cbdfe1;background:#fff;border-radius:8px;cursor:pointer';
+                function dismiss() { overlay.remove(); }
+                link.addEventListener('click', dismiss);
+                close.addEventListener('click', dismiss);
+                box.appendChild(title);
+                box.appendChild(text);
+                box.appendChild(link);
+                box.appendChild(close);
+                overlay.appendChild(box);
+                document.body.appendChild(overlay);
+            }
+
             addMessage('bot', 'Halo! Ada yang bisa saya bantu terkait informasi kedinasan KKP?');
             renderAuthArea();
 
@@ -406,7 +438,9 @@
                 submitEl.disabled = true;
                 var loadingEl = addMessage('loading', 'Sedang mengetik...');
 
-                fetch(window.location.origin + '/api/widget/chat', {
+                var streamEl = null;
+
+                fetch(window.location.origin + '/api/widget/chat/stream', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -421,18 +455,61 @@
                         page_origin: pageOrigin,
                     }),
                 })
-                    .then(function (res) { return res.json(); })
+                    .then(function (res) {
+                        var reader = res.body.getReader();
+                        var decoder = new TextDecoder();
+                        var buffer = '';
+                        var donePayload = null;
+
+                        function pump() {
+                            return reader.read().then(function (chunk) {
+                                if (chunk.done) return donePayload;
+                                buffer += decoder.decode(chunk.value, { stream: true });
+                                var events = buffer.split('\n\n');
+                                buffer = events.pop();
+                                events.forEach(function (raw) {
+                                    var ev = /^event: (.+)$/m.exec(raw);
+                                    var dl = /^data: (.+)$/m.exec(raw);
+                                    if (!ev || !dl) return;
+                                    var payload = JSON.parse(dl[1]);
+                                    if (ev[1] === 'delta') {
+                                        if (!streamEl) {
+                                            loadingEl.remove();
+                                            streamEl = addMessage('bot', '');
+                                        }
+                                        streamEl.textContent += payload.text;
+                                        messagesEl.scrollTop = messagesEl.scrollHeight;
+                                    } else if (ev[1] === 'done') {
+                                        donePayload = payload;
+                                    }
+                                });
+                                return pump();
+                            });
+                        }
+
+                        return pump();
+                    })
                     .then(function (data) {
                         loadingEl.remove();
+                        if (!data) throw new Error('empty');
 
                         if (data.require_widget_login) {
+                            if (streamEl) streamEl.remove();
                             addMessage('bot', data.answer || 'Silakan login terlebih dahulu untuk melanjutkan.');
                             openLoginModal(message);
                             return;
                         }
 
                         var answer = data.answer || 'Maaf, terjadi kesalahan. Silakan coba lagi.';
-                        addMessage('bot', answer);
+                        var botEl = streamEl || addMessage('bot', answer);
+                        botEl.textContent = answer;
+                        if (typeof data.similarity === 'number') {
+                            var sim = document.createElement('div');
+                            sim.style.cssText = 'margin-top:6px;font-size:10px;opacity:.7';
+                            sim.textContent = 'Tingkat kemiripan dengan sumber: ' + (data.similarity * 100).toFixed(1) + '%';
+                            botEl.appendChild(sim);
+                        }
+                        showHandoverPopup(data.handover);
                         history.push({ role: 'user', content: message });
                         history.push({ role: 'assistant', content: answer });
                     })

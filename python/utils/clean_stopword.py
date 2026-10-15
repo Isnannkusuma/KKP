@@ -10,13 +10,27 @@ INDONESIAN_STOPWORDS = {
 
 
 def normalize_asn_cpns_query(query_text: str) -> str:
-    query_text = re.sub(
-        r"(?<![\w])(?:asn[\s-]+cpns|cpns[\s-]+asn|asn|cpns)(?![\w])",
-        "asn cpns",
-        query_text.strip(),
+    text = query_text.strip()
+    # Perluas akronim Biro SDMAO dan Permen KP agar cocok dengan teks perundang-undangan resmi
+    text = re.sub(
+        r"\b(?:biro\s+)?sdmao\b",
+        "Biro Sumber Daya Manusia Aparatur dan Organisasi",
+        text,
         flags=re.IGNORECASE,
     )
-    return query_text.lower()
+    text = re.sub(
+        r"\bpermen\s+kp\b",
+        "Peraturan Menteri Kelautan dan Perikanan",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"(?<![\w])(?:asn[\s-]+cpns|cpns[\s-]+asn|asn|cpns)(?![\w])",
+        "asn cpns",
+        text,
+        flags=re.IGNORECASE,
+    )
+    return text.lower()
 
 
 def clean_query_for_keyword_search(query_text: str) -> str:

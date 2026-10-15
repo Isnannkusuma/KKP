@@ -2,17 +2,44 @@
 
 namespace App\Services\Channels;
 
-use App\Services\Chat\RagChatService;
+use App\Http\Controllers\ChatController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
 class TelegramService
 {
+    protected const EMPLOYMENT_KEYWORDS = [
+        'kepegawaian',
+        'pegawai',
+        'asn',
+        'pns',
+        'cpns',
+        'pppk',
+        'nip',
+        'jabatan',
+        'pangkat',
+        'golongan',
+        'kenaikan gaji',
+        'kenaikan pangkat',
+        'gaji berkala',
+        'cuti',
+        'pensiun',
+        'bup',
+        'talenta',
+        'pemetaan',
+        'bangkom',
+        'pengembangan kompetensi',
+        'disiplin',
+    ];
+
+    protected const EMPLOYMENT_LOGIN_URL = 'https://csai.sdmao-kkp.online/';
+
     protected string $botToken;
 
     protected string $apiUrl;
 
     public function __construct(
-        protected RagChatService $ragChatService
+        protected ChatController $chatController
     ) {
         $this->botToken = config('services.telegram.bot_token');
 
@@ -64,31 +91,57 @@ class TelegramService
             return;
         }
 
-        /*
-         * Tampilkan indikator sedang mengetik.
-         */
-        $this->sendChatAction($chatId, 'typing');
-
-        if ($this->isGreeting($text)) {
+        if ($this->isEmploymentQuestion($text)) {
             $this->sendMessage(
                 $chatId,
-                "Halo 👋\n\n"
-                ."Saya Asisten Layanan KKP.\n"
-                .'Saya dapat membantu menjawab pertanyaan seputar '
-                .'peraturan, layanan, dan informasi kedinasan berdasarkan '
-                ."dokumen resmi yang tersedia.\n\n"
-                .'Silakan kirim pertanyaan Anda.'
+                'Untuk pertanyaan atau layanan terkait kepegawaian, silakan buka '
+                .self::EMPLOYMENT_LOGIN_URL
+                .' lalu masuk menggunakan SSO Kepegawaian. Setelah login, Anda dapat '
+                .'mengakses bantuan yang sesuai dengan data kepegawaian Anda.'
             );
 
             return;
         }
 
-        $answer = $this->ragChatService->process($text);
-
-        $this->sendMessage(
-            $chatId,
-            $answer
+        /*
+         * Keep unanswered-question tracking isolated per Telegram user.
+         */
+        $chatRequest = Request::create('/api/chat', 'POST', [
+            'message' => $text,
+        ]);
+        $chatRequest->attributes->set(
+            'chat_user_identifier',
+            'telegram:'.hash('sha256', (string) $telegramUserId)
         );
+
+        $this->sendChatAction($chatId, 'typing');
+
+        $response = $this->chatController->process($chatRequest);
+        $answer = $response->getData(true)['answer'] ?? null;
+
+        if (! is_string($answer) || trim($answer) === '') {
+            throw new \UnexpectedValueException(
+                'ChatController returned an empty Telegram answer.'
+            );
+        }
+
+        $this->sendMessage($chatId, $answer);
+    }
+
+    protected function isEmploymentQuestion(string $text): bool
+    {
+        $normalized = mb_strtolower($text);
+
+        foreach (self::EMPLOYMENT_KEYWORDS as $keyword) {
+            if (preg_match(
+                '/(?<![\p{L}\p{N}])'.preg_quote($keyword, '/').'(?![\p{L}\p{N}])/u',
+                $normalized
+            ) === 1) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function sendMessage(
@@ -101,27 +154,6 @@ class TelegramService
                 'text' => $text,
             ])
             ->throw();
-    }
-
-    protected function isGreeting(string $text): bool
-    {
-        $text = mb_strtolower(trim($text));
-
-        $greetings = [
-            'halo',
-            'hai',
-            'hi',
-            'hello',
-            'helo',
-            'p',
-            'permisi',
-            'selamat pagi',
-            'selamat siang',
-            'selamat sore',
-            'selamat malam',
-        ];
-
-        return in_array($text, $greetings, true);
     }
 
     protected function sendChatAction(

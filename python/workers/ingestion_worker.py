@@ -1,4 +1,5 @@
 import logging
+import os
 from uuid import uuid4
 from services.extraction_service import ExtractionService
 from services.ocr_service import OCRService
@@ -30,6 +31,10 @@ async def process_document_ingestion(file_path: str, document_id: str, metadata:
             if elem['type'] == 'image' and elem.get('needs_ocr'):
                 elem['text'] = await ocr_service.extract_text(elem['image_path'])
                 elem['extraction_method'] = 'ocr'
+                try:
+                    os.remove(elem['image_path'])
+                except OSError:
+                    pass
             else:
                 elem['extraction_method'] = 'digital_text'
                 

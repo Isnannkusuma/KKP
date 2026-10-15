@@ -7,6 +7,7 @@ import uuid
 import json
 
 from services.extraction_service import ExtractionService
+from services.ocr_service import OCRService
 from services.cleaning_service import CleaningService
 from services.chunking_service import ChunkingService
 from services.embedding_service import EmbeddingService
@@ -18,6 +19,7 @@ logger = structlog.get_logger()
 limiter = Limiter(key_func=get_remote_address)
 
 extraction_service = ExtractionService()
+ocr_service = OCRService()
 cleaning_service = CleaningService()
 chunking_service = ChunkingService()
 embedding_service = EmbeddingService()
@@ -86,6 +88,14 @@ async def process_document_pipeline(
     chunk_index = 0
     
     for element in elements:
+        if element.get('needs_ocr') and element.get('image_path'):
+            element['text'] = await ocr_service.extract_text(element['image_path'])
+            element['extraction_method'] = 'ocr'
+            try:
+                os.remove(element['image_path'])
+            except OSError:
+                pass
+
         cleaned_result = await cleaning_service.clean_text(
             text=element['text'],
             extraction_method=element.get('extraction_method', 'digital_text')

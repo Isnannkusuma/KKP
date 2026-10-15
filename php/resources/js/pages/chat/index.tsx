@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Bot, LogIn, LogOut, MessageSquarePlus, Search, Trash2, UserRound, X } from 'lucide-react';
+import { Bot, LogIn, MessageCircle, LogOut, MessageSquarePlus, Search, Trash2, UserRound, X } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import ChatInput from '@/components/chat/chat-input';
 import ChatMessage from '@/components/chat/chat-message';
@@ -25,6 +25,45 @@ interface ChatProps {
     } | null;
 }
 
+// Membaca respons SSE: onDelta dipanggil per potongan teks, hasil akhirnya payload "done".
+async function readStream(response: Response, onDelta: (text: string) => void) {
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let done: any = null;
+
+    for (;;) {
+        const { value, done: finished } = await reader.read();
+
+        if (finished) {
+            break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split('\n\n');
+        buffer = events.pop() ?? '';
+
+        for (const raw of events) {
+            const event = /^event: (.+)$/m.exec(raw)?.[1];
+            const dataLine = /^data: (.+)$/m.exec(raw)?.[1];
+
+            if (!event || !dataLine) {
+                continue;
+            }
+
+            const payload = JSON.parse(dataLine);
+
+            if (event === 'delta') {
+                onDelta(payload.text);
+            } else if (event === 'done') {
+                done = payload;
+            }
+        }
+    }
+
+    return done;
+}
+
 const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
 function ChatPage({ user, conversations = [], activeConversation = null }: ChatProps) {
@@ -38,8 +77,9 @@ function ChatPage({ user, conversations = [], activeConversation = null }: ChatP
         message: 'Untuk pertanyaan terkait data pribadi atau NIP, silakan login terlebih dahulu.',
         redirectTo: '/login',
     });
+    const [handover, setHandover] = useState<{ whatsapp_url: string; whatsapp_number: string; message: string } | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const isMale = ['laki', 'laki-laki', 'male'].includes(user?.gender?.toLowerCase() ?? '');
+    const isMale = ['l', 'm', 'laki', 'laki-laki', 'male'].includes((user?.gender ?? '').trim().toLowerCase());
     const userLabel = user ? `${isMale ? 'Bapak' : 'Ibu'} ${user.name}` : 'Bapak/Ibu';
 
     const filteredConversations = conversations.filter((item) => item.title.toLowerCase().includes(search.trim().toLowerCase()));
@@ -109,7 +149,8 @@ function ChatPage({ user, conversations = [], activeConversation = null }: ChatP
         setIsLoading(true);
 
         try {
-            const response = await fetch('/chat/process', {
+            const streamId = `stream-${Date.now()}`;
+            const response = await fetch('/chat/stream', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -123,7 +164,24 @@ function ChatPage({ user, conversations = [], activeConversation = null }: ChatP
                 }),
             });
 
-            const data = await response.json();
+            const data = await readStream(response, (text) => {
+                setMessages((prev) => {
+                    const existing = prev.find((m) => m.id === streamId);
+
+                    if (existing) {
+                        return prev.map((m) => (m.id === streamId ? { ...m, content: m.content + text } : m));
+                    }
+
+                    return [...prev, { id: streamId, role: 'assistant', content: text, created_at: new Date().toISOString() }];
+                });
+            });
+
+            setMessages((prev) => prev.filter((m) => m.id !== streamId));
+
+            if (!data) {
+                throw new Error('Respons streaming kosong');
+            }
+
             const loginReminderText = typeof data?.answer === 'string' ? data.answer : '';
             const requiresLogin = Boolean(
                 data?.require_login
@@ -152,9 +210,15 @@ function ChatPage({ user, conversations = [], activeConversation = null }: ChatP
                     content: data.answer,
                     sources: data.sources || [],
                     auditId: data.audit_id || null,
+                    graphic: Boolean(data.graphic),
+                    similarity: typeof data.similarity === 'number' ? data.similarity : null,
                     created_at: new Date().toISOString(),
                 };
                 setMessages((prev) => [...prev, aiMsg]);
+
+                if (data.handover?.whatsapp_url) {
+                    setHandover(data.handover);
+                }
 
                 if (user && data.conversation_id) {
                     if (data.conversation_id !== conversationId) {
@@ -339,7 +403,7 @@ function ChatPage({ user, conversations = [], activeConversation = null }: ChatP
                                     <ChatMessage key={msg.id} message={msg} onFeedback={handleFeedback} />
                                 ))}
 
-                                {isLoading && (
+                                {isLoading && !messages.some((m) => m.id.startsWith('stream-')) && (
                                     <div className="mb-6 flex gap-3">
                                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e6f3f1] text-[#078589]">
                                             <div className="gap-1 flex">
@@ -365,6 +429,23 @@ function ChatPage({ user, conversations = [], activeConversation = null }: ChatP
                     </section>
                 </main>
             </div>
+
+            <Dialog open={handover !== null} onOpenChange={(open) => !open && setHandover(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Hubungi Admin via WhatsApp</DialogTitle>
+                        <DialogDescription>{handover?.message}</DialogDescription>
+                    </DialogHeader>
+                    <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setHandover(null)}>Nanti saja</Button>
+                        <Button asChild>
+                            <a href={handover?.whatsapp_url} target="_blank" rel="noopener noreferrer" onClick={() => setHandover(null)}>
+                                <MessageCircle className="mr-2 h-4 w-4" /> Chat WhatsApp {handover?.whatsapp_number}
+                            </a>
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

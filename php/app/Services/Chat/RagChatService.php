@@ -231,7 +231,7 @@ class RagChatService
         try {
             $payload = [
                 'query' => $message,
-                'top_k' => 3,
+                'top_k' => 6,
             ];
 
             if (! empty($queryEmbedding)) {
@@ -341,6 +341,8 @@ ATURAN:
 KONTEKS DOKUMEN:
 {$context}
 PROMPT;
+
+        $systemPrompt .= \App\Models\ChatbotSetting::promptSection();
 
         /*
          * ============================================================

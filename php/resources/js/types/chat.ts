@@ -7,6 +7,8 @@ export interface ChatMessage {
         filename: string;
         similarity_score: number;
     }[];
+    graphic?: boolean;
+    similarity?: number | null;
     auditId?: string | null;
     feedback?: 'positive' | 'negative';
     created_at: string;

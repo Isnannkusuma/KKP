@@ -46,6 +46,50 @@ test('chat controller includes previous messages in the AI prompt', function () 
     });
 });
 
+test('chat controller uses pinned GPT Luna before gemini when an openai key is configured', function () {
+    config([
+        'ai.providers.openai.key' => 'test-openai-key',
+        'ai.providers.openai.url' => 'https://api.openai.com/v1',
+    ]);
+
+    Http::fake([
+        'http://localhost:8000/search' => Http::response(['results' => []], 200),
+        'https://api.openai.com/v1/chat/completions' => Http::response([
+            'choices' => [[
+                'message' => [
+                    'content' => 'Jawaban dari OpenAI.',
+                ],
+                'finish_reason' => 'stop',
+            ]],
+        ], 200),
+        'https://generativelanguage.googleapis.com/*' => Http::response([
+            'candidates' => [],
+        ], 500),
+    ]);
+
+    $user = User::factory()->create([
+        'name' => 'Budi',
+        'nip' => '198801012023011001',
+        'role' => 'user',
+    ]);
+
+    $response = $this->actingAs($user)
+        ->post(route('chat.process'), [
+            'message' => 'Apa prosedur layanan kepegawaian?',
+            'history' => [],
+        ]);
+
+    $response->assertOk();
+    expect($response->json('answer'))->toContain('Jawaban dari OpenAI');
+
+    Http::assertSent(function ($request) {
+        return $request->url() === 'https://api.openai.com/v1/chat/completions'
+            && $request['model'] === 'gpt-6-luna'
+            && $request->hasHeader('Authorization', 'Bearer test-openai-key');
+    });
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), 'generativelanguage.googleapis.com'));
+});
+
 test('chat controller falls back to groq when gemini key is empty', function () {
     putenv('GEMINI_API_KEY=');
     putenv('GROQ_API_KEY=test-groq-key');
@@ -350,4 +394,21 @@ test('bangkom questions return a clear unavailable message instead of the out-of
 
     $response->assertOk();
     expect($response->json('answer'))->toContain('Data rekomendasi bangkom Anda belum tersedia');
+});
+
+test('chat controller triggers whatsapp handover after three unanswered questions', function () {
+    $user = User::factory()->create(['nip' => '198801012023011001', 'role' => 'user']);
+
+    foreach ([1, 2] as $i) {
+        $this->actingAs($user)
+            ->postJson(route('chat.process'), ['message' => "pertanyaan acak nomor {$i} tentang cuaca"])
+            ->assertOk()
+            ->assertJsonPath('handover', null);
+    }
+
+    $this->actingAs($user)
+        ->postJson(route('chat.process'), ['message' => 'pertanyaan acak ketiga tentang cuaca'])
+        ->assertOk()
+        ->assertJsonPath('handover.whatsapp_number', '087735281196')
+        ->assertJsonPath('handover.whatsapp_url', fn ($url) => str_starts_with($url, 'https://wa.me/6287735281196'));
 });

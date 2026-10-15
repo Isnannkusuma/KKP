@@ -3,6 +3,7 @@
 use App\Http\Controllers\ApiServiceController;
 use App\Http\Controllers\Auth\KeycloakLoginController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ChatbotSettingController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ChatConversationController;
 use App\Http\Controllers\DashboardController;
@@ -54,6 +55,10 @@ Route::delete('/chat/conversations', [ChatConversationController::class, 'destro
 
 Route::post('/chat/process', [ChatController::class, 'process'])
     ->name('chat.process')
+    ->middleware('throttle:20,1');
+
+Route::post('/chat/stream', [ChatController::class, 'stream'])
+    ->name('chat.stream')
     ->middleware('throttle:20,1');
 
 Route::post('/chat/audits/{auditLog}/feedback', [ChatController::class, 'feedback'])
@@ -161,6 +166,9 @@ Route::middleware('auth')->group(function () {
             ->name('api-services.test');
 
         // FAQ Review
+        Route::get('/pengaturan-chatbot', [ChatbotSettingController::class, 'edit'])->name('chatbot-settings.edit');
+        Route::put('/pengaturan-chatbot', [ChatbotSettingController::class, 'update'])->name('chatbot-settings.update');
+
         Route::get('/faq-review', [FaqReviewController::class, 'index'])
             ->name('faq-review.index');
 

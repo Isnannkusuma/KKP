@@ -256,15 +256,6 @@ function renderBangkomMessage(content: string) {
         return renderBangkomFallback(content);
     }
 
-    const cards = [
-        { label: 'PANGKAT', value: data.pangkat || '-' },
-        { label: 'TMT PANGKAT', value: data.tmtPangkat || '-' },
-        { label: 'JABATAN', value: data.jabatan || '-' },
-        { label: 'TMT JABATAN', value: data.tmtJabatan || '-' },
-        { label: 'UNIT ORGANISASI', value: data.unitOrganisasi || '-' },
-        { label: 'JENJANG JABATAN', value: data.jenjangJabatan || '-' },
-    ];
-
     return (
         <div className="w-full max-w-full overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-sm">
             <div className="border-b border-slate-200 bg-slate-50 px-3 py-3 sm:px-4">
@@ -275,16 +266,7 @@ function renderBangkomMessage(content: string) {
                 </div>
             </div>
 
-            <div className="grid gap-3 p-3 sm:grid-cols-2 sm:p-4 xl:grid-cols-5">
-                {cards.map((card) => (
-                    <div key={card.label} className="min-h-22.5 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                        <div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:text-[11px]">{card.label}</div>
-                        <div className="text-sm font-semibold text-slate-800 wrap-break-word sm:text-[15px]">{card.value}</div>
-                    </div>
-                ))}
-            </div>
-
-            <div className="grid gap-3 px-3 pb-3 sm:px-4 sm:pb-4 md:grid-cols-3">
+            <div className="grid gap-3 p-3 sm:p-4 md:grid-cols-3">
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                     <div className="mb-2 text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:text-[11px]">Rekomendasi Manajerial</div>
                     <div className="inline-flex rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-medium text-emerald-700 sm:text-xs">
@@ -946,7 +928,11 @@ export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
                         ? 'border border-[#d6e7e8] bg-white text-[#183746] rounded-tl-sm'
                         : 'border border-[#cfe5e3] bg-[#eaf5f3] text-[#183746] rounded-tr-sm'
                 }`}>
-                    {isAi && isCasualGreeting(message.content) ? (
+                    {isAi && !message.graphic ? (
+                        <p className="whitespace-pre-wrap leading-relaxed wrap-break-words">
+                            {message.content}
+                        </p>
+                    ) : isAi && isCasualGreeting(message.content) ? (
                         <p className="whitespace-pre-wrap leading-relaxed wrap-break-words">
                             {message.content}
                         </p>
@@ -959,6 +945,12 @@ export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
                     ) : (
                         <p className="whitespace-pre-wrap leading-relaxed wrap-break-words">
                             {message.content}
+                        </p>
+                    )}
+
+                    {isAi && typeof message.similarity === 'number' && (
+                        <p className="mt-3 text-[10px] font-medium text-teal-700">
+                            Tingkat kemiripan dengan sumber: {(message.similarity * 100).toFixed(1)}%
                         </p>
                     )}
 

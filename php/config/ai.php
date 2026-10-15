@@ -13,11 +13,13 @@ return [
     |
     */
 
-    'default' => 'openai',
+    // ChatController selects OpenAI explicitly for chatbot answers; keep
+    // implicit Laravel AI calls on Gemini instead of the paid OpenAI provider.
+    'default' => 'gemini',
     'default_for_images' => 'gemini',
     'default_for_audio' => 'openai',
     'default_for_transcription' => 'openai',
-    'default_for_embeddings' => 'openai',
+    'default_for_embeddings' => 'gemini',
     'default_for_reranking' => 'cohere',
 
     /*
@@ -129,7 +131,8 @@ return [
         'openai' => [
             'driver' => 'openai',
             'key' => env('OPENAI_API_KEY'),
-            'url' => env('OPENAI_URL', 'https://api.openai.com/v1'),
+            'url' => env('OPENAI_URL') ?: 'https://api.openai.com/v1',
+            'model' => 'gpt-6-luna',
             'store' => env('OPENAI_STORE', true),
         ],
 

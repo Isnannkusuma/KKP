@@ -14,6 +14,8 @@ use Illuminate\Http\Request;
 
 class WidgetChatController extends ChatController
 {
+    protected bool $supportsGraphic = false;
+
     public function __construct(
         PortalPegawaiService $portalPegawaiService,
         PemetaanPegawaiService $pemetaanPegawaiService,

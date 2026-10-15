@@ -1,4 +1,6 @@
 import os
+import tempfile
+import uuid
 import fitz  # PyMuPDF
 import pdfplumber
 import pandas as pd
@@ -33,8 +35,8 @@ class ExtractionService:
                 
                 if needs_ocr:
                     # Simpan halaman sebagai gambar untuk OCR service
-                    img_path = f"/tmp/page_{i}.png"
-                    pix = page.get_pixmap()
+                    img_path = os.path.join(tempfile.gettempdir(), f"ocr_{uuid.uuid4().hex}_{i}.png")
+                    pix = page.get_pixmap(dpi=200)
                     pix.save(img_path)
                     elements.append({
                         'type': 'image', 
