@@ -1,8 +1,8 @@
-// Shared white/blue "glass" surface styles for the dashboard, document, and category pages.
-export const GLASS_PAGE_BG = 'bg-gradient-to-br from-slate-50 via-white to-blue-50/60';
-export const GLASS_CARD = 'rounded-2xl border border-blue-100/80 bg-white/90 shadow-[0_10px_30px_-14px_rgba(30,64,175,0.25)] backdrop-blur-xl';
-export const GLASS_BAR = 'rounded-2xl border border-blue-100/80 bg-white/90 shadow-[0_10px_30px_-14px_rgba(30,64,175,0.18)] backdrop-blur-xl';
-export const GLASS_PILL = 'rounded-full border border-blue-100 bg-white/95 shadow-sm';
-export const PRIMARY_BUTTON = 'bg-blue-600 text-white shadow-sm hover:bg-blue-700 focus-visible:ring-blue-300';
-export const HEADING_TEXT = 'text-slate-900';
-export const SUBTEXT = 'text-slate-500';
+// Shared teal/green "glass" surface styles (same palette as the chatbot page) for the dashboard, document, category, and settings pages.
+export const GLASS_PAGE_BG = 'bg-[radial-gradient(circle_at_top_right,_#dff3f0_0,_#eff7f7_42%,_#f7faf9_100%)]';
+export const GLASS_CARD = 'rounded-2xl border border-[#d6e7e8] bg-white/90 shadow-[0_12px_32px_rgba(16,57,68,0.08)] backdrop-blur-xl';
+export const GLASS_BAR = 'rounded-2xl border border-[#d6e7e8] bg-white/90 shadow-[0_12px_32px_rgba(16,57,68,0.06)] backdrop-blur-xl';
+export const GLASS_PILL = 'rounded-full border border-[#d6e7e8] bg-white/95 shadow-sm';
+export const PRIMARY_BUTTON = 'bg-[#087f82] text-white shadow-sm hover:bg-[#066d70] focus-visible:ring-[#9bd9d2]';
+export const HEADING_TEXT = 'text-[#183746]';
+export const SUBTEXT = 'text-[#52717b]';

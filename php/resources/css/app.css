@@ -13,6 +13,18 @@
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
 
+    /* Skala "blue" dialihkan ke teal chatbot (#087f82) agar seluruh halaman admin senada. */
+    --color-blue-50: #eaf5f3;
+    --color-blue-100: #d6e7e8;
+    --color-blue-200: #b7e0db;
+    --color-blue-300: #66b8b1;
+    --color-blue-400: #3fa39d;
+    --color-blue-500: #17a58f;
+    --color-blue-600: #087f82;
+    --color-blue-700: #066d70;
+    --color-blue-800: #0a5659;
+    --color-blue-900: #123746;
+
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
     --radius-sm: calc(var(--radius) - 4px);
@@ -87,14 +99,14 @@
     --chart-4: oklch(0.828 0.189 84.429);
     --chart-5: oklch(0.769 0.188 70.08);
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.87 0 0);
+    --sidebar: #f7fbfb;
+    --sidebar-foreground: #183746;
+    --sidebar-primary: #087f82;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #eaf5f3;
+    --sidebar-accent-foreground: #087f82;
+    --sidebar-border: #d6e7e8;
+    --sidebar-ring: #66b8b1;
 }
 
 .dark {

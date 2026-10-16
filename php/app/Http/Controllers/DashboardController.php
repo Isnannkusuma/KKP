@@ -34,11 +34,11 @@ class DashboardController extends Controller
         });
 
         $dailyResults = (clone $audits)
-            ->selectRaw('DATE(created_at) as date, COUNT(*) as total, SUM(CASE WHEN response_status = ? THEN 1 ELSE 0 END) as answered, SUM(CASE WHEN response_status = ? THEN 1 ELSE 0 END) as unanswered', ['answered', 'unanswered'])
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as total')
             ->groupByRaw('DATE(created_at)')
             ->pluck('total', 'date');
         $dailyAnswers = (clone $audits)
-            ->selectRaw('DATE(created_at) as date, SUM(CASE WHEN response_status = ? THEN 1 ELSE 0 END) as answered, SUM(CASE WHEN response_status = ? THEN 1 ELSE 0 END) as unanswered', ['answered', 'unanswered'])
+            ->selectRaw('DATE(created_at) as date, SUM(CASE WHEN response_status = ? THEN 1 ELSE 0 END) as answered, SUM(CASE WHEN response_status = ? OR (response_status IS NULL AND result_count = 0) THEN 1 ELSE 0 END) as unanswered', ['answered', 'unanswered'])
             ->groupByRaw('DATE(created_at)')
             ->get()
             ->keyBy('date');
@@ -104,12 +104,16 @@ class DashboardController extends Controller
         $questions = SearchAuditLog::query()
             ->whereDate('created_at', $validated['date'])
             ->orderBy('created_at')
-            ->get(['id', 'query', 'user_name', 'user_identifier', 'response_status', 'created_at'])
+            ->get(['id', 'query', 'user_name', 'user_identifier', 'response_status', 'result_count', 'created_at'])
             ->map(fn (SearchAuditLog $audit): array => [
                 'id' => $audit->id,
                 'question' => $audit->query,
                 'user' => $audit->user_name ?: ($audit->user_identifier ?: 'Anonim'),
-                'status' => $audit->response_status,
+                'status' => match (true) {
+                    $audit->response_status === 'answered' => 'answered',
+                    $audit->response_status === 'unanswered', $audit->response_status === null && (int) $audit->result_count === 0 => 'unanswered',
+                    default => null,
+                },
                 'askedAt' => $audit->created_at?->toIso8601String(),
             ]);
 

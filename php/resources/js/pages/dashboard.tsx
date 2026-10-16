@@ -73,6 +73,8 @@ const formatDate = (date: string | null): string => {
 
 export default function Dashboard({ period, stats, daily, contextGroups, popularQuestions, unansweredQuestions }: DashboardProps) {
     const [selectedDay, setSelectedDay] = useState<DailyActivity | null>(null);
+    const [selectedContext, setSelectedContext] = useState<string | null>(null);
+    const selectedGroup = contextGroups.data.find((group) => group.context === selectedContext) ?? null;
     const answerRate = stats.total === 0 ? 0 : Math.round((stats.answered / stats.total) * 100);
     const maximumActivity = Math.max(...daily.map((item) => item.total), 1);
     const maximumResolution = Math.max(...daily.map((item) => item.total), 1);
@@ -124,7 +126,7 @@ export default function Dashboard({ period, stats, daily, contextGroups, popular
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     <MetricCard label="Total pertanyaan" value={stats.total} detail={`Dalam ${period} hari terakhir`} icon={MessagesSquare} />
                     <MetricCard label="Tingkat resolusi" value={`${answerRate}%`} detail={`${stats.answered} pertanyaan terjawab`} icon={CheckCircle2} tone="success" />
-                    <MetricCard label="Perlu evaluasi" value={stats.unanswered} detail="Belum ditemukan jawaban relevan" icon={MessageSquareWarning} tone="warning" />
+                    <MetricCard label="Pertanyaan belum terjawab" value={stats.unanswered} detail="Belum ditemukan jawaban relevan" icon={MessageSquareWarning} tone="warning" />
                 </div>
 
                 {/* Baris 1 — dua chart sejajar kiri & kanan */}
@@ -143,41 +145,33 @@ export default function Dashboard({ period, stats, daily, contextGroups, popular
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {contextGroups.data.length > 0 ? contextGroups.data.map((group) => (
-                                <details key={group.context} className="group border-b border-blue-50 pb-4 last:border-0 last:pb-0">
-                                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
-                                        <div className="flex min-w-0 items-center gap-2">
-                                            <ChevronDown className="size-4 shrink-0 text-blue-400 transition-transform group-open:rotate-180" />
+                                <div key={group.context} className="border-b border-blue-50 pb-4 last:border-0 last:pb-0">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <button type="button" onClick={() => setSelectedContext(group.context)} className="flex min-w-0 flex-1 items-center gap-2 text-left" title="Lihat daftar pertanyaan">
+                                            <ChevronRight className="size-4 shrink-0 text-blue-400" />
                                             <p className="truncate text-sm font-semibold text-slate-800">{group.context}</p>
-                                        </div>
+                                        </button>
                                         <div className="flex shrink-0 items-center gap-2">
-                                            {group.unanswered > 0 && <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">{group.unanswered} evaluasi</Badge>}
+                                            {group.unanswered > 0 && <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">{group.unanswered} belum terjawab</Badge>}
                                             <Badge variant="secondary" className="border-blue-100 bg-blue-50 text-blue-700">{group.total} pertanyaan</Badge>
-                                            <button type="button" title="Hapus konteks" aria-label={`Hapus konteks ${group.context}`} onClick={(event) => {
-                                                event.preventDefault();
-                                                deleteAudits(group.questions.map((question) => question.question));
-                                            }} className="grid size-7 place-items-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="size-3.5" /></button>
+                                            <button type="button" title="Hapus konteks" aria-label={`Hapus konteks ${group.context}`} onClick={() => deleteAudits(group.questions.map((question) => question.question))} className="grid size-7 place-items-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="size-3.5" /></button>
                                         </div>
-                                    </summary>
-                                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-blue-50"><div className="h-full rounded-full bg-blue-500" style={{ width: `${Math.max((group.total / Math.max(stats.total, 1)) * 100, 4)}%` }} /></div>
-                                    <div className="mt-3 space-y-2 border-l-2 border-blue-100 pl-3">
-                                        {group.questions.map((question) => <div key={question.question} className="flex items-start justify-between gap-3 text-xs">
-                                            <div><p className="leading-5 text-slate-600">{question.question}</p><p className="mt-0.5 text-[11px] text-slate-400">Terakhir diajukan: {formatDate(question.askedAt)}</p></div>
-                                            <div className="flex items-center gap-1"><Badge variant="outline" className="shrink-0 border-blue-100 text-blue-700">{question.total}x</Badge><button type="button" title="Hapus pertanyaan" aria-label={`Hapus ${question.question}`} onClick={() => deleteAudits([question.question])} className="grid size-6 place-items-center rounded text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="size-3" /></button></div>
-                                        </div>)}
                                     </div>
-                                </details>
+                                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-blue-50"><div className="h-full rounded-full bg-blue-500" style={{ width: `${Math.max((group.total / Math.max(stats.total, 1)) * 100, 4)}%` }} /></div>
+                                </div>
                             )) : <EmptyState message="Belum ada konteks pertanyaan untuk dikelompokkan." />}
                             <Pagination pagination={contextGroups} pageKey="context_page" period={period} />
                         </CardContent>
                     </Card>
 
+                    <ContextQuestionsDialog group={selectedGroup} onClose={() => setSelectedContext(null)} onDelete={deleteAudits} />
                     <PopularQuestionsCard popularQuestions={popularQuestions} period={period} onDelete={deleteAudits} />
                 </div>
 
                 {/* Baris 3 — pertanyaan belum terjawab, full width ujung ke ujung */}
                 <Card className={cn('w-full', GLASS_CARD)}>
                     <CardHeader>
-                        <CardTitle className="text-slate-800">Pertanyaan belum dapat dijawab</CardTitle>
+                        <CardTitle className="text-slate-800">Pertanyaan belum terjawab</CardTitle>
                         <CardDescription className="text-slate-500">Gunakan daftar ini untuk menentukan dokumen atau jawaban yang perlu ditambahkan.</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -315,6 +309,23 @@ function MetricCard({ label, value, detail, icon: Icon, tone }: { label: string;
     );
 }
 
+function ContextQuestionsDialog({ group, onClose, onDelete }: { group: ContextGroup | null; onClose: () => void; onDelete: (questions?: string[]) => void }) {
+    return <Dialog open={group !== null} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="bg-white sm:max-w-2xl">
+            <DialogHeader>
+                <DialogTitle className="text-slate-900">{group?.context}</DialogTitle>
+                <DialogDescription className="text-slate-500">{group?.total} pertanyaan dalam kelompok konteks ini.</DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[60vh] space-y-3 overflow-auto pr-1">
+                {group?.questions.map((question) => <div key={question.question} className="flex items-start justify-between gap-3 border-b border-blue-50 pb-3 text-sm last:border-0">
+                    <div><p className="leading-5 text-slate-700">{question.question}</p><p className="mt-0.5 text-[11px] text-slate-400">Terakhir diajukan: {formatDate(question.askedAt)}</p></div>
+                    <div className="flex items-center gap-1"><Badge variant="outline" className="shrink-0 border-blue-100 text-blue-700">{question.total}x</Badge><button type="button" title="Hapus pertanyaan" aria-label={`Hapus ${question.question}`} onClick={() => onDelete([question.question])} className="grid size-7 place-items-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="size-3.5" /></button></div>
+                </div>)}
+            </div>
+        </DialogContent>
+    </Dialog>;
+}
+
 interface DayQuestion {
     id: string;
     question: string;
@@ -349,20 +360,25 @@ function DayQuestionsDialog({ day, onClose }: { day: DailyActivity | null; onClo
     const current = state && state.date === date ? state : null;
 
     return <Dialog open={day !== null} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="bg-white sm:max-w-3xl">
+        <DialogContent className="w-[calc(100%-2rem)] bg-white sm:max-w-6xl">
             <DialogHeader>
                 <DialogTitle className="text-slate-900">Pertanyaan tanggal {day?.label}</DialogTitle>
                 <DialogDescription className="text-slate-500">Daftar pertanyaan yang diajukan pengguna pada hari ini.</DialogDescription>
             </DialogHeader>
-            <div className="max-h-[60vh] overflow-auto">
+            {current?.items && current.items.length > 0 && <div className="flex gap-2 text-xs">
+                <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">Terjawab: {current.items.filter((item) => item.status === 'answered').length}</Badge>
+                <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">Belum terjawab: {current.items.filter((item) => item.status === 'unanswered').length}</Badge>
+            </div>}
+            <div className="max-h-[75vh] overflow-auto">
                 {!current ? <p className="py-8 text-center text-sm text-slate-400">Memuat...</p>
                     : current.failed ? <p className="py-8 text-center text-sm text-red-500">Gagal memuat pertanyaan.</p>
                         : current.items && current.items.length === 0 ? <EmptyState message="Tidak ada pertanyaan pada hari ini." />
                             : <Table>
-                                <TableHeader><TableRow><TableHead>Pertanyaan</TableHead><TableHead>Pengguna</TableHead><TableHead>Waktu</TableHead></TableRow></TableHeader>
+                                <TableHeader><TableRow><TableHead>Pertanyaan</TableHead><TableHead>Pengguna</TableHead><TableHead>Status</TableHead><TableHead>Waktu</TableHead></TableRow></TableHeader>
                                 <TableBody>{current.items?.map((item) => <TableRow key={item.id}>
-                                    <TableCell className="max-w-sm whitespace-normal break-words font-medium text-slate-700">{item.question}</TableCell>
+                                    <TableCell className="max-w-xl whitespace-normal break-words font-medium text-slate-700">{item.question}</TableCell>
                                     <TableCell className="text-slate-600">{item.user}</TableCell>
+                                    <TableCell>{item.status === 'answered' ? <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">Terjawab</Badge> : item.status === 'unanswered' ? <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">Belum terjawab</Badge> : <span className="text-slate-400">-</span>}</TableCell>
                                     <TableCell className="whitespace-nowrap text-slate-500">{formatDate(item.askedAt)}</TableCell>
                                 </TableRow>)}</TableBody>
                             </Table>}
@@ -397,16 +413,16 @@ function ResolutionChart({ daily, maximum, onSelect }: { daily: DailyActivity[];
     return <Card className={cn('flex h-full flex-col', GLASS_CARD)}>
         <CardHeader>
             <CardTitle className="text-slate-800">Resolusi per hari</CardTitle>
-            <CardDescription className="text-slate-500">Perbandingan jawaban berhasil dan yang memerlukan evaluasi.</CardDescription>
+            <CardDescription className="text-slate-500">Perbandingan jawaban berhasil dan yang belum terjawab.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col justify-end">
             <div className="flex h-52 items-end gap-px border-b border-l border-blue-100 px-3 pt-5 sm:gap-1">
-                {daily.map((item) => <div key={item.label} role="button" tabIndex={0} onClick={() => item.total && onSelect(item)} onKeyDown={(event) => event.key === 'Enter' && item.total && onSelect(item)} className={cn('flex h-full min-w-0 flex-1 items-end gap-px', item.total ? 'cursor-pointer' : '')} title={`${item.label}: ${item.answered} terjawab, ${item.unanswered} perlu evaluasi`}>
+                {daily.map((item) => <div key={item.label} role="button" tabIndex={0} onClick={() => item.total && onSelect(item)} onKeyDown={(event) => event.key === 'Enter' && item.total && onSelect(item)} className={cn('flex h-full min-w-0 flex-1 items-end gap-px', item.total ? 'cursor-pointer' : '')} title={`${item.label}: ${item.answered} terjawab, ${item.unanswered} belum terjawab`}>
                     <div className="w-1/2 rounded-t-sm bg-blue-500/85" style={{ height: item.answered ? `${Math.max((item.answered / maximum) * 100, 3)}%` : '0%' }} />
                     <div className="w-1/2 rounded-t-sm bg-amber-500/85" style={{ height: item.unanswered ? `${Math.max((item.unanswered / maximum) * 100, 3)}%` : '0%' }} />
                 </div>)}
             </div>
-            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-500"><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-blue-500" />Terjawab: {totalAnswered}</span><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-amber-500" />Perlu evaluasi: {totalUnanswered}</span></div>
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-500"><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-blue-500" />Terjawab: {totalAnswered}</span><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-amber-500" />Belum terjawab: {totalUnanswered}</span></div>
         </CardContent>
     </Card>;
 }
