@@ -68,16 +68,26 @@ class ChatbotSetting extends Model
 
     protected $fillable = [
         'is_enabled', 'custom_instructions', 'assistant_name', 'assistant_role', 'additional_info',
-        'tone', 'warmth', 'enthusiasm', 'emoji', 'layout', 'headings_lists',
+        'tone', 'warmth', 'enthusiasm', 'emoji', 'layout', 'headings_lists', 'query_aliases',
     ];
 
-    protected $casts = ['is_enabled' => 'boolean'];
+    protected $casts = ['is_enabled' => 'boolean', 'query_aliases' => 'array'];
 
     public static function current(): self
     {
         $attributes = Cache::remember(self::CACHE_KEY, 300, fn () => static::query()->first()?->getAttributes() ?? []);
 
         return (new static)->forceFill($attributes);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function queryAliases(): array
+    {
+        $aliases = static::current()->query_aliases;
+
+        return is_array($aliases) ? $aliases : [];
     }
 
     protected static function booted(): void

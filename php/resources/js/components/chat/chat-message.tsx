@@ -1,5 +1,5 @@
 import { Chart, Filler, Legend, LineElement, PointElement, RadarController, RadialLinearScale, Tooltip } from 'chart.js';
-import { Bot, FileText, ThumbsDown, ThumbsUp, User } from 'lucide-react';
+import { Bot, ThumbsDown, ThumbsUp, User } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { ChatMessage as ChatMessageType } from '@/types';
@@ -910,6 +910,55 @@ function renderPersonalProfile(content: string) {
     return <PersonalProfileCard profile={profile} />;
 }
 
+function renderCompleteList(content: string): ReactNode {
+    const blocks: ReactNode[] = [];
+    const paragraph: string[] = [];
+    const items: string[] = [];
+    const flushParagraph = () => {
+        if (paragraph.length > 0) {
+            blocks.push(
+                <p key={`paragraph-${blocks.length}`} className="whitespace-pre-wrap leading-relaxed wrap-break-words">
+                    {paragraph.join('\n')}
+                </p>,
+            );
+            paragraph.length = 0;
+        }
+    };
+    const flushItems = () => {
+        if (items.length > 0) {
+            blocks.push(
+                <ol key={`list-${blocks.length}`} className="my-3 list-decimal space-y-2.5 pl-6 marker:font-semibold marker:text-[#087f82]">
+                    {items.map((item, index) => (
+                        <li key={`${index}-${item}`} value={index + 1} className="pl-1 leading-relaxed wrap-break-words">
+                            {item}
+                        </li>
+                    ))}
+                </ol>,
+            );
+            items.length = 0;
+        }
+    };
+
+    for (const line of content.split(/\r?\n/)) {
+        const listItem = line.match(/^\s*(?:[-•*]|\d+[.)])\s+(.+)$/);
+
+        if (listItem) {
+            flushParagraph();
+            items.push(listItem[1]);
+        } else if (line.trim() === '' && items.length > 0) {
+            continue;
+        } else {
+            flushItems();
+            paragraph.push(line);
+        }
+    }
+
+    flushItems();
+    flushParagraph();
+
+    return <div className="space-y-2">{blocks}</div>;
+}
+
 export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
     const isAi = message.role === 'assistant';
 
@@ -928,7 +977,9 @@ export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
                         ? 'border border-[#d6e7e8] bg-white text-[#183746] rounded-tl-sm'
                         : 'border border-[#cfe5e3] bg-[#eaf5f3] text-[#183746] rounded-tr-sm'
                 }`}>
-                    {isAi && !message.graphic ? (
+                    {isAi && message.completeList && !message.graphic ? (
+                        renderCompleteList(message.content)
+                    ) : isAi && !message.graphic ? (
                         <p className="whitespace-pre-wrap leading-relaxed wrap-break-words">
                             {message.content}
                         </p>
@@ -948,44 +999,6 @@ export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
                         </p>
                     )}
 
-                    {isAi && typeof message.similarity === 'number' && (
-                        <p className="mt-3 text-[10px] font-medium text-teal-700">
-                            Tingkat kemiripan dengan sumber: {(message.similarity * 100).toFixed(1)}%
-                        </p>
-                    )}
-
-                    {isAi && message.sources && message.sources.length > 0 && (
-                        <div className="mt-4 border-t border-teal-200/70 pt-3">
-                            <p className="mb-2 flex gap-1 text-[10px] font-semibold uppercase tracking-wider text-teal-700">
-                                <FileText className="h-3 w-3" />
-                                Sumber Referensi
-                            </p>
-                            
-                            <div className="flex-col gap-2 flex">
-                                {message.sources.map((source, idx) => {
-                                    const safeScore = typeof source.similarity_score === 'number' ? source.similarity_score : 0;
-                                    const safeFilename = source.filename && source.filename.trim() !== '' 
-                                        ? source.filename 
-                                        : 'Dokumen Tidak Diketahui';
-
-                                    return (
-                                        <div 
-                                            key={idx} 
-                                            className="flex gap-2 rounded-md border border-teal-100 bg-teal-50/70 p-2 text-xs transition-colors hover:bg-teal-100"
-                                        >
-                                            <span className="flex-1 truncate font-medium text-teal-800" title={safeFilename}>
-                                                {safeFilename}
-                                            </span>
-                                            
-                                            <span className="whitespace-nowrap rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-teal-700">
-                                                 {(safeScore * 100).toFixed(1)}% match
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
                 </div>
 
                 <div className={`mt-1 flex items-center gap-1 px-1 ${isAi ? 'text-slate-400' : 'text-slate-500'}`}>

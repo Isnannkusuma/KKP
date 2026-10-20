@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ChatbotSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 
@@ -189,6 +190,59 @@ test('logged in users can ask questions about RAG documents', function () {
         $text = $request['contents'][0]['parts'][0]['text'] ?? '';
 
         return str_contains($text, 'Dokumen RAG menjelaskan prosedur pengembangan kompetensi.');
+    });
+});
+
+test('chatbot retrieves and asks the AI to include every entry for complete-list questions', function () {
+    ChatbotSetting::create([
+        'custom_instructions' => 'Gunakan tata letak terstruktur.',
+        'layout' => 'terstruktur',
+    ]);
+
+    $results = collect(range(1, 40))
+        ->map(fn (int $number): array => [
+            'document_id' => 999999,
+            'content' => "Nama: Pegawai {$number}\nTanggal pelantikan: 16 Oktober 2026",
+            'hybrid_score' => 0.8,
+        ])
+        ->all();
+
+    Http::fake([
+        'http://localhost:8000/embed/queries' => Http::response(['embeddings' => []]),
+        'http://localhost:8000/search' => Http::response(['results' => $results]),
+        'https://generativelanguage.googleapis.com/*' => Http::response([
+            'candidates' => [[
+                'content' => [
+                    'parts' => [['text' => 'Daftar lengkap pegawai yang dilantik.']],
+                ],
+                'finishReason' => 'STOP',
+            ]],
+        ], 200),
+    ]);
+
+    $response = $this->post(route('chat.process'), [
+        'message' => 'siapa saja pegawai yang dilantik pada tanggal 16 oktober 2026?',
+        'history' => [],
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('complete_list', true);
+
+    Http::assertSent(function ($request): bool {
+        return $request->url() === 'http://localhost:8000/search'
+            && $request['top_k'] === 50;
+    });
+
+    Http::assertSent(function ($request): bool {
+        $prompt = $request['systemInstruction']['parts']['text'] ?? '';
+        $context = $request['contents'][0]['parts'][0]['text'] ?? '';
+
+        return str_contains($request->url(), 'generativelanguage.googleapis.com')
+            && str_contains($prompt, 'FORMAT KHUSUS DAFTAR')
+            && str_contains($prompt, 'tanpa baris kosong di antara entri')
+            && str_contains($prompt, 'PERSONALISASI DARI ADMIN')
+            && strpos($prompt, 'FORMAT KHUSUS DAFTAR') > strpos($prompt, 'PERSONALISASI DARI ADMIN')
+            && str_contains($context, 'Nama: Pegawai 40');
     });
 });
 

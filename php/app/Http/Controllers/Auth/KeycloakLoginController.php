@@ -27,7 +27,15 @@ class KeycloakLoginController extends Controller
             ]);
         }
 
-        return $this->keycloak->redirect($request);
+        try {
+            return $this->keycloak->redirect($request);
+        } catch (RuntimeException $exception) {
+            Log::warning('KEYCLOAK redirect gagal', ['msg' => $exception->getMessage()]);
+
+            return redirect()->route('login')->withErrors([
+                'login' => $exception->getMessage(),
+            ]);
+        }
     }
 
     public function callback(Request $request): RedirectResponse
@@ -114,6 +122,8 @@ class KeycloakLoginController extends Controller
         $user = User::query()->where('nip', $nip)->first();
 
         if ($user !== null) {
+            $user->promoteConfiguredAdminNip();
+
             return $user;
         }
 
@@ -126,13 +136,17 @@ class KeycloakLoginController extends Controller
             return null;
         }
 
-        return User::create([
+        $user = User::create([
             'name' => $pegawai['nama'] ?? $identity['name'] ?? 'Pegawai',
             'nip' => $nip,
             'email' => $nip.'@pegawai.local',
             'password' => Str::random(40),
             'role' => 'user',
         ]);
+
+        $user->promoteConfiguredAdminNip();
+
+        return $user;
     }
 
     /** @param array<string, mixed> $identity */

@@ -30,6 +30,21 @@ it('treats unit kerja and pangkat questions as personal data questions', functio
         ->and($shouldReturnDirectly('apa pangkat saya?'))->toBeTrue();
 });
 
+it('does not require login for general employee questions but protects personal information', function () {
+    $controller = makeChatController();
+    $requiresLogin = function (string $message) use ($controller): bool {
+        $method = new ReflectionMethod(ChatController::class, 'requiresLoginForPersonalData');
+        $method->setAccessible(true);
+
+        return $method->invoke($controller, $message);
+    };
+
+    expect($requiresLogin('apa kebijakan cuti pegawai?'))->toBeFalse()
+        ->and($requiresLogin('siapa saja pegawai yang dilantik hari ini?'))->toBeFalse()
+        ->and($requiresLogin('berapa NIP pegawai saya?'))->toBeTrue()
+        ->and($requiresLogin('informasi pribadi saya secara lengkap'))->toBeTrue();
+});
+
 it('extracts pangkat and unit kerja from personal context', function () {
     $controller = makeChatController();
 

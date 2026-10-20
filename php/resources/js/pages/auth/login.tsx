@@ -71,7 +71,7 @@ export default function Login({ status, keycloakEnabled, keycloakLoginUrl }: Pro
                             variant="outline"
                             className="h-11 w-full rounded-xl border-white/30 bg-transparent font-semibold text-white hover:bg-white/10"
                         >
-                            <a href={keycloakLoginUrl} data-test="keycloak-login-button">
+                            <a href={keycloakLoginUrl} target="_top" data-test="keycloak-login-button">
                                 Login dengan SSO Keycloak
                             </a>
                         </Button>

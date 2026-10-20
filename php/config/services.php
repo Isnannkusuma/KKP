@@ -35,6 +35,11 @@ return [
         ],
     ],
 
+    'admin_nips' => array_values(array_filter(array_map(
+        static fn (string $nip): string => trim($nip),
+        explode(',', (string) env('ADMIN_NIPS', '')),
+    ), static fn (string $nip): bool => $nip !== '')),
+
     'portal_pegawai' => [
         'base_url' => env('PORTAL_API_BASE_URL', ''),
         'token' => env('PORTAL_API_TOKEN', ''),

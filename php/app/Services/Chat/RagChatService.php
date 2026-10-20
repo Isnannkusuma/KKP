@@ -2,6 +2,8 @@
 
 namespace App\Services\Chat;
 
+use App\Models\ChatbotSetting;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -46,7 +48,13 @@ class RagChatService
             return $this->outOfScopeMessage;
         }
 
-        $retrievalQuery = QueryNormalizer::normalize($message);
+        $expandedMessage = QueryNormalizer::expandShortcuts($message);
+        $searchMessage = QueryNormalizer::resolveRelativeDate(
+            $message,
+            Carbon::now('Asia/Jakarta')->settings(['locale' => 'id'])->translatedFormat('j F Y'),
+        );
+        $retrievalQuery = QueryNormalizer::normalize($searchMessage);
+        $requestsCompleteList = QueryNormalizer::requestsCompleteList($message);
 
         try {
             /*
@@ -64,7 +72,7 @@ class RagChatService
              * Jika pertanyaan sangat mirip dengan FAQ yang sudah approved,
              * langsung gunakan jawaban FAQ tanpa memanggil LLM.
              */
-            if (! empty($queryEmbedding)) {
+            if (! empty($queryEmbedding) && ! $requestsCompleteList) {
                 $faqMatch = $this->findMatchingFaq($queryEmbedding);
 
                 if ($faqMatch !== null) {
@@ -120,9 +128,11 @@ class RagChatService
              * ============================================================
              */
             $answer = $this->generateAnswer(
-                message: $message,
+                message: $expandedMessage,
                 context: $context,
                 history: $historyText,
+                requestsCompleteList: $requestsCompleteList,
+                requestedListCount: QueryNormalizer::requestedListCount($message),
             );
 
             /*
@@ -231,7 +241,7 @@ class RagChatService
         try {
             $payload = [
                 'query' => $message,
-                'top_k' => 6,
+                'top_k' => QueryNormalizer::requestsCompleteList($message) ? 50 : 6,
             ];
 
             if (! empty($queryEmbedding)) {
@@ -316,7 +326,9 @@ class RagChatService
     protected function generateAnswer(
         string $message,
         string $context,
-        string $history = ''
+        string $history = '',
+        bool $requestsCompleteList = false,
+        ?int $requestedListCount = null,
     ): ?string {
         $systemPrompt = <<<PROMPT
 Anda adalah Asisten Layanan resmi instansi.
@@ -342,7 +354,14 @@ KONTEKS DOKUMEN:
 {$context}
 PROMPT;
 
-        $systemPrompt .= \App\Models\ChatbotSetting::promptSection();
+        if ($requestsCompleteList) {
+            $systemPrompt .= "\n\nFORMAT DAFTAR: Sajikan dengan daftar bernomor berurutan, satu orang per baris, tanpa baris kosong di antara entri. Cantumkan nama dan jabatan/unit yang ada di konteks, jangan mengarang, dan jangan tampilkan sumber referensi.";
+            $systemPrompt .= $requestedListCount !== null
+                ? " Pengguna meminta paling banyak {$requestedListCount} orang; tampilkan maksimal {$requestedListCount} orang pertama yang cocok."
+                : ' Cantumkan seluruh nama relevan yang tersedia dalam konteks.';
+        }
+
+        $systemPrompt .= ChatbotSetting::promptSection();
 
         /*
          * ============================================================

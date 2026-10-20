@@ -33,6 +33,16 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+    public function promoteConfiguredAdminNip(): void
+    {
+        if (
+            in_array($this->nip, config('services.admin_nips', []), true)
+            && $this->role !== 'admin'
+        ) {
+            $this->forceFill(['role' => 'admin'])->save();
+        }
+    }
+
     /**
      * Get the attributes that should be cast.
      *

@@ -210,8 +210,13 @@ class KeycloakAuthenticationService
 
                 return $response->successful() && is_array($response->json()) ? $response->json() : [];
             });
-        } catch (\Throwable) {
-            throw new RuntimeException('Konfigurasi Keycloak tidak dapat dimuat.');
+        } catch (\Throwable $exception) {
+            Log::error('Konfigurasi Keycloak tidak dapat dimuat.', [
+                'exception_class' => $exception::class,
+                'message' => $exception->getMessage(),
+            ]);
+
+            throw new RuntimeException('Konfigurasi Keycloak tidak dapat dimuat.', 0, $exception);
         }
 
         foreach (['authorization_endpoint', 'token_endpoint', 'userinfo_endpoint'] as $endpoint) {

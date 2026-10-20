@@ -8,6 +8,7 @@ export interface ChatMessage {
         similarity_score: number;
     }[];
     graphic?: boolean;
+    completeList?: boolean;
     similarity?: number | null;
     auditId?: string | null;
     feedback?: 'positive' | 'negative';

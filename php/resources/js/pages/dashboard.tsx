@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Download, MessageSquareWarning, MessagesSquare, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { GLASS_BAR, GLASS_CARD, GLASS_PAGE_BG, GLASS_PILL, PRIMARY_BUTTON } from '@/lib/glass-theme';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
+import { index as chatIndex } from '@/routes/chat';
 
 interface QuestionSummary {
     question: string;
@@ -111,6 +112,16 @@ export default function Dashboard({ period, stats, daily, contextGroups, popular
                         <p className="text-sm text-slate-500">Analisis penggunaan dan resolusi jawaban.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                            href={chatIndex()}
+                            className={cn(
+                                'inline-flex h-10 items-center gap-2 px-4 text-sm font-medium text-blue-700 transition hover:bg-blue-50',
+                                GLASS_PILL,
+                            )}
+                        >
+                            <MessagesSquare className="size-4" />
+                            Buka Chatbot
+                        </Link>
                         <label className="sr-only" htmlFor="period">Periode</label>
                         <select id="period" value={period} onChange={(event) => changePeriod(Number(event.target.value))} className={cn('h-10 px-4 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-200', GLASS_PILL)}>
                             <option value={7}>7 hari terakhir</option>

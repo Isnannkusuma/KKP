@@ -4,35 +4,12 @@ namespace App\Services\Channels;
 
 use App\Http\Controllers\ChatController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 class TelegramService
 {
-    protected const EMPLOYMENT_KEYWORDS = [
-        'kepegawaian',
-        'pegawai',
-        'asn',
-        'pns',
-        'cpns',
-        'pppk',
-        'nip',
-        'jabatan',
-        'pangkat',
-        'golongan',
-        'kenaikan gaji',
-        'kenaikan pangkat',
-        'gaji berkala',
-        'cuti',
-        'pensiun',
-        'bup',
-        'talenta',
-        'pemetaan',
-        'bangkom',
-        'pengembangan kompetensi',
-        'disiplin',
-    ];
-
-    protected const EMPLOYMENT_LOGIN_URL = 'https://csai.sdmao-kkp.online/';
+    protected const MESSAGE_LIMIT = 4000;
 
     protected string $botToken;
 
@@ -46,6 +23,9 @@ class TelegramService
         $this->apiUrl = "https://api.telegram.org/bot{$this->botToken}";
     }
 
+    /**
+     * @param  array<string, mixed>  $update
+     */
     public function handleUpdate(array $update): void
     {
         $message = $update['message'] ?? null;
@@ -62,10 +42,13 @@ class TelegramService
             return;
         }
 
+        $historyCacheKey = 'telegram:chat-history:'.hash('sha256', (string) $telegramUserId);
+
         /*
          * Command /start
          */
         if ($text === '/start') {
+            Cache::forget($historyCacheKey);
             $this->sendMessage(
                 $chatId,
                 "Halo 👋\n\n"
@@ -91,16 +74,9 @@ class TelegramService
             return;
         }
 
-        if ($this->isEmploymentQuestion($text)) {
-            $this->sendMessage(
-                $chatId,
-                'Untuk pertanyaan atau layanan terkait kepegawaian, silakan buka '
-                .self::EMPLOYMENT_LOGIN_URL
-                .' lalu masuk menggunakan SSO Kepegawaian. Setelah login, Anda dapat '
-                .'mengakses bantuan yang sesuai dengan data kepegawaian Anda.'
-            );
-
-            return;
+        $history = Cache::get($historyCacheKey, []);
+        if (! is_array($history)) {
+            $history = [];
         }
 
         /*
@@ -108,6 +84,7 @@ class TelegramService
          */
         $chatRequest = Request::create('/api/chat', 'POST', [
             'message' => $text,
+            'history' => $history,
         ]);
         $chatRequest->attributes->set(
             'chat_user_identifier',
@@ -117,7 +94,8 @@ class TelegramService
         $this->sendChatAction($chatId, 'typing');
 
         $response = $this->chatController->process($chatRequest);
-        $answer = $response->getData(true)['answer'] ?? null;
+        $responseData = $response->getData(true);
+        $answer = $responseData['answer'] ?? null;
 
         if (! is_string($answer) || trim($answer) === '') {
             throw new \UnexpectedValueException(
@@ -125,35 +103,69 @@ class TelegramService
             );
         }
 
-        $this->sendMessage($chatId, $answer);
-    }
-
-    protected function isEmploymentQuestion(string $text): bool
-    {
-        $normalized = mb_strtolower($text);
-
-        foreach (self::EMPLOYMENT_KEYWORDS as $keyword) {
-            if (preg_match(
-                '/(?<![\p{L}\p{N}])'.preg_quote($keyword, '/').'(?![\p{L}\p{N}])/u',
-                $normalized
-            ) === 1) {
-                return true;
-            }
+        if (! empty($responseData['require_login'])) {
+            $answer = 'Untuk pertanyaan terkait data pribadi atau NIP, silakan buka '
+                .'https://csai.sdmao-kkp.online/ lalu masuk menggunakan SSO Kepegawaian.';
+        } else {
+            $history[] = ['role' => 'user', 'content' => $text];
+            $history[] = ['role' => 'assistant', 'content' => $answer];
+            Cache::put(
+                $historyCacheKey,
+                array_slice($history, -12),
+                now()->addHours(2),
+            );
         }
 
-        return false;
+        $this->sendMessage($chatId, $answer);
     }
 
     public function sendMessage(
         string|int $chatId,
         string $text
     ): void {
-        Http::timeout(30)
-            ->post("{$this->apiUrl}/sendMessage", [
-                'chat_id' => $chatId,
-                'text' => $text,
-            ])
-            ->throw();
+        $parts = $this->splitMessage($text);
+        if ($parts === []) {
+            throw new \InvalidArgumentException('Telegram message cannot be empty.');
+        }
+
+        foreach ($parts as $part) {
+            Http::timeout(30)
+                ->post("{$this->apiUrl}/sendMessage", [
+                    'chat_id' => $chatId,
+                    'text' => $part,
+                ])
+                ->throw();
+        }
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function splitMessage(string $text): array
+    {
+        $parts = [];
+
+        while (mb_strlen($text) > self::MESSAGE_LIMIT) {
+            $part = mb_substr($text, 0, self::MESSAGE_LIMIT);
+            $splitAt = mb_strrpos($part, "\n");
+
+            if ($splitAt === false || $splitAt < self::MESSAGE_LIMIT / 2) {
+                $splitAt = mb_strrpos($part, ' ');
+            }
+
+            if ($splitAt === false || $splitAt < self::MESSAGE_LIMIT / 2) {
+                $splitAt = self::MESSAGE_LIMIT;
+            }
+
+            $parts[] = trim(mb_substr($text, 0, $splitAt));
+            $text = ltrim(mb_substr($text, $splitAt));
+        }
+
+        if (trim($text) !== '') {
+            $parts[] = trim($text);
+        }
+
+        return $parts;
     }
 
     protected function sendChatAction(

@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\Channels\TelegramService;
 use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Support\Facades\Http;
 
@@ -88,7 +89,58 @@ it('lets the website chat pipeline handle Telegram greetings', function () {
     });
 });
 
-it('directs Telegram employment questions to the SSO website without calling the AI pipeline', function () {
+it('answers public list questions even when they include the word pegawai', function () {
+    $results = collect(range(1, 10))
+        ->map(fn (int $number): array => [
+            'document_id' => 999999,
+            'content' => "Nama: Pegawai {$number}\nTanggal pelantikan: 16 Oktober 2026",
+            'hybrid_score' => 0.8,
+        ])
+        ->all();
+
+    Http::fake([
+        'http://localhost:8000/search' => Http::response(['results' => $results]),
+        'https://generativelanguage.googleapis.com/*' => Http::response([
+            'candidates' => [[
+                'content' => [
+                    'parts' => [['text' => "1. Pegawai 1\n2. Pegawai 2"]],
+                ],
+                'finishReason' => 'STOP',
+            ]],
+        ]),
+        'https://api.telegram.org/*' => Http::response(['ok' => true]),
+        '*' => Http::response(['error' => 'Unexpected request'], 500),
+    ]);
+
+    $this->postJson('/api/webhook/telegram', [
+        'message' => [
+            'chat' => ['id' => 12345],
+            'from' => ['id' => 67890],
+            'text' => 'berikan 10 nama pegawai yang dilantik pada hari ini',
+        ],
+    ])->assertOk()->assertJson(['ok' => true]);
+
+    Http::assertSent(function (ClientRequest $request): bool {
+        return $request->url() === 'http://localhost:8000/search'
+            && $request['top_k'] === 50
+            && ! str_contains(mb_strtolower($request['query']), 'hari ini');
+    });
+
+    Http::assertSent(function (ClientRequest $request): bool {
+        $prompt = $request['systemInstruction']['parts']['text'] ?? '';
+
+        return str_contains($request->url(), 'generativelanguage.googleapis.com')
+            && str_contains($prompt, 'maksimal 10 orang');
+    });
+
+    Http::assertSent(function (ClientRequest $request): bool {
+        return $request->url() === 'https://api.telegram.org/bottest-bot-token/sendMessage'
+            && str_contains($request['text'], 'Pegawai 1')
+            && ! str_contains($request['text'], 'SSO Kepegawaian');
+    });
+});
+
+it('directs Telegram personal data questions to the SSO website without calling the AI pipeline', function () {
     Http::fake([
         'https://api.telegram.org/*' => Http::response(['ok' => true]),
         '*' => Http::response(['error' => 'Unexpected request'], 500),
@@ -98,7 +150,7 @@ it('directs Telegram employment questions to the SSO website without calling the
         'message' => [
             'chat' => ['id' => 12345],
             'from' => ['id' => 67890],
-            'text' => 'Bagaimana cara melihat data kepegawaian saya?',
+            'text' => 'Berapa NIP saya?',
         ],
     ])->assertOk()->assertJson(['ok' => true]);
 
@@ -114,4 +166,71 @@ it('directs Telegram employment questions to the SSO website without calling the
     ) || str_contains($request->url(), 'generativelanguage.googleapis.com')
         || str_contains($request->url(), 'api.openai.com')
         || str_contains($request->url(), 'api.groq.com'));
+});
+
+it('keeps Telegram follow-up list requests in the current conversation', function () {
+    Http::fake([
+        'http://localhost:8000/search' => Http::response(['results' => [[
+            'document_id' => 999999,
+            'content' => 'Nama: Pegawai 1; tanggal pelantikan 16 Oktober 2026.',
+            'hybrid_score' => 0.8,
+        ]]]),
+        'https://generativelanguage.googleapis.com/*' => Http::response([
+            'candidates' => [[
+                'content' => [
+                    'parts' => [['text' => 'Daftar pegawai yang dilantik.']],
+                ],
+                'finishReason' => 'STOP',
+            ]],
+        ]),
+        'https://api.telegram.org/*' => Http::response(['ok' => true]),
+        '*' => Http::response(['error' => 'Unexpected request'], 500),
+    ]);
+
+    foreach ([
+        'berikan 10 nama pegawai yang dilantik pada hari ini',
+        'sekarang berikan 30 nama',
+    ] as $text) {
+        $this->postJson('/api/webhook/telegram', [
+            'message' => [
+                'chat' => ['id' => 12345],
+                'from' => ['id' => 98765],
+                'text' => $text,
+            ],
+        ])->assertOk()->assertJson(['ok' => true]);
+    }
+
+    $searchRequests = Http::recorded(
+        fn (ClientRequest $request): bool => $request->url() === 'http://localhost:8000/search'
+    )->map(fn (array $record): ClientRequest => $record[0])->values();
+
+    expect($searchRequests)->toHaveCount(2)
+        ->and($searchRequests[1]['query'])->toContain('berikan 10 nama pegawai yang dilantik')
+        ->and($searchRequests[1]['query'])->toContain('sekarang berikan 30 nama');
+
+    Http::assertSent(function (ClientRequest $request): bool {
+        $prompt = $request['systemInstruction']['parts']['text'] ?? '';
+
+        return str_contains($request->url(), 'generativelanguage.googleapis.com')
+            && str_contains($prompt, 'maksimal 30 orang');
+    });
+});
+
+it('splits Telegram messages before they exceed the platform length limit', function () {
+    Http::fake([
+        'https://api.telegram.org/*' => Http::response(['ok' => true]),
+    ]);
+
+    app(TelegramService::class)->sendMessage(
+        12345,
+        str_repeat('a', 4200),
+    );
+
+    $sentMessages = Http::recorded()
+        ->map(fn (array $record): string => (string) $record[0]['text'])
+        ->values();
+
+    expect($sentMessages)->toHaveCount(2)
+        ->and($sentMessages->sum(fn (string $text): int => mb_strlen($text)))->toBe(4200)
+        ->and($sentMessages->max(fn (string $text): int => mb_strlen($text)))->toBeLessThanOrEqual(4096);
 });

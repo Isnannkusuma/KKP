@@ -1,5 +1,16 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Bot, LogIn, MessageCircle, LogOut, MessageSquarePlus, Search, Trash2, UserRound, X } from 'lucide-react';
+import {
+    Bot,
+    LayoutDashboard,
+    LogIn,
+    MessageCircle,
+    LogOut,
+    MessageSquarePlus,
+    Search,
+    Trash2,
+    UserRound,
+    X,
+} from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import ChatInput from '@/components/chat/chat-input';
 import ChatMessage from '@/components/chat/chat-message';
@@ -7,7 +18,7 @@ import WelcomeScreen from '@/components/chat/welcome-screen';
 import type { ChatSuggestion } from '@/components/chat/welcome-screen';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { login, logout } from '@/routes';
+import { dashboard, login, logout } from '@/routes';
 import type { ChatMessage as ChatMessageType } from '@/types';
 
 interface ConversationItem {
@@ -21,6 +32,7 @@ interface ChatProps {
     activeConversation?: { id: string; messages: ChatMessageType[] } | null;
     user: {
         name: string;
+        role: string;
         gender?: string | null;
     } | null;
 }
@@ -211,6 +223,7 @@ function ChatPage({ user, conversations = [], activeConversation = null }: ChatP
                     sources: data.sources || [],
                     auditId: data.audit_id || null,
                     graphic: Boolean(data.graphic),
+                    completeList: Boolean(data.complete_list),
                     similarity: typeof data.similarity === 'number' ? data.similarity : null,
                     created_at: new Date().toISOString(),
                 };
@@ -381,6 +394,16 @@ function ChatPage({ user, conversations = [], activeConversation = null }: ChatP
                             <div className="flex items-center gap-2"><img src="/KKP%20LOGO%203.png" alt="" className="aspect-square h-7 w-7 shrink-0 rounded-full object-contain ring-1 ring-[#9bd9d2]" /><h1 className="text-sm font-semibold text-[#183746]">Layanan AI KKP</h1></div>
                             <div className="flex items-center gap-2">
                                 <div className="flex items-center gap-2 rounded-full border border-[#d6e7e8] bg-white/80 py-2 pl-3 pr-2 text-[11px] font-medium text-[#365765]"><UserRound className="h-3.5 w-3.5 text-[#078589]" /> {userLabel}</div>
+                                {user?.role === 'admin' && (
+                                    <Link
+                                        href={dashboard()}
+                                        aria-label="Buka dashboard admin"
+                                        className="flex h-8 items-center gap-1.5 rounded-lg border border-[#cbdfe1] bg-white px-3 text-[11px] font-semibold text-[#087f82] transition hover:bg-[#edf7f6]"
+                                    >
+                                        <LayoutDashboard className="h-3.5 w-3.5" />
+                                        <span className="hidden sm:inline">Dashboard</span>
+                                    </Link>
+                                )}
                                 {!user && (
                                     <Link
                                         href={login()}

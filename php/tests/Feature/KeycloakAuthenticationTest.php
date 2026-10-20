@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 
@@ -38,6 +39,15 @@ test('keycloak login redirects using the configured callback URL', function (): 
         ->assertRedirectContains('code_challenge_method=S256');
 });
 
+test('keycloak login returns to login page when discovery service is unavailable', function (): void {
+    Http::fake(fn () => throw new ConnectionException('Connection refused.'));
+
+    $response = $this->get('/login/keycloak');
+
+    $response->assertRedirect(route('login', absolute: false))
+        ->assertSessionHasErrors('login');
+});
+
 test('keycloak login canonicalizes the host before starting the SSO session', function (): void {
     $response = $this->get('https://csai.sdmao-kkp.example.test/login/keycloak');
 
@@ -70,6 +80,37 @@ test('keycloak login redirects employee users directly to chat', function (): vo
     ])->get('/login?code=authorization-code&state=state-123');
 
     $this->assertAuthenticatedAs($user);
+    $response->assertRedirect(route('chat.index', absolute: false));
+});
+
+test('keycloak promotes users whose nips are configured as admins', function (): void {
+    $user = User::factory()->create([
+        'nip' => '198001012006041001',
+        'id_roles' => 19,
+        'role' => 'user',
+    ]);
+    config()->set('services.admin_nips', [$user->nip]);
+
+    Http::fake([
+        'https://keycloak.example.test/realms/kkp/.well-known/openid-configuration' => Http::response([
+            'authorization_endpoint' => 'https://keycloak.example.test/authorize',
+            'token_endpoint' => 'https://keycloak.example.test/token',
+            'userinfo_endpoint' => 'https://keycloak.example.test/userinfo',
+        ]),
+        'https://keycloak.example.test/token' => Http::response(['access_token' => 'access-token']),
+        'https://keycloak.example.test/userinfo' => Http::response(['preferred_username' => $user->nip]),
+    ]);
+
+    $response = $this->withSession([
+        'keycloak.pending' => [
+            'state' => 'state-123',
+            'verifier' => str_repeat('v', 96),
+            'expires_at' => now()->addMinute()->getTimestamp(),
+        ],
+    ])->get('/login?code=authorization-code&state=state-123');
+
+    $this->assertAuthenticatedAs($user);
+    expect($user->fresh()->role)->toBe('admin');
     $response->assertRedirect(route('chat.index', absolute: false));
 });
 

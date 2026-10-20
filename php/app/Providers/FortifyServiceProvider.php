@@ -72,6 +72,8 @@ class FortifyServiceProvider extends ServiceProvider
             $user = User::where('nip', $nip)->first();
 
             if ($user && Hash::check($password, $user->password)) {
+                $user->promoteConfiguredAdminNip();
+
                 return $user;
             }
 
@@ -127,13 +129,17 @@ class FortifyServiceProvider extends ServiceProvider
              * Jika belum mempunyai akun Laravel,
              * buat akun secara otomatis.
              */
-            return User::create([
+            $user = User::create([
                 'name' => $pegawaiData['nama'] ?? 'Pegawai',
                 'nip' => $pegawaiData['nip'] ?? $nip,
                 'email' => $nip.'@pegawai.local',
                 'password' => Hash::make($nip),
                 'role' => 'user',
             ]);
+
+            $user->promoteConfiguredAdminNip();
+
+            return $user;
         });
     }
 

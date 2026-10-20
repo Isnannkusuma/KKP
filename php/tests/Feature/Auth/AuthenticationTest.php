@@ -24,6 +24,23 @@ test('admin users are redirected to the dashboard after login', function () {
     $response->assertRedirect(route('dashboard', absolute: false));
 });
 
+test('users with a configured admin nip are promoted when they log in', function () {
+    $user = User::factory()->create([
+        'nip' => '198001012006041001',
+        'role' => 'user',
+    ]);
+    config()->set('services.admin_nips', [$user->nip]);
+
+    $response = $this->post(route('login.store'), [
+        'nip' => $user->nip,
+        'password' => 'password',
+    ]);
+
+    $this->assertAuthenticatedAs($user);
+    expect($user->fresh()->role)->toBe('admin');
+    $response->assertRedirect(route('dashboard', absolute: false));
+});
+
 test('admin account is seeded with the configured nip and password', function () {
     $this->seed(DatabaseSeeder::class);
 
