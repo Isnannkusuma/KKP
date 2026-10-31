@@ -25,8 +25,8 @@ export default function UploadDocumentDialog({ onUpload, categories }: UploadDoc
     const validateFile = (file: File): boolean => {
         const ext = file.name.split('.').pop()?.toLowerCase();
 
-        if (!['pdf', 'docx', 'xlsx', 'xls'].includes(ext || '')) {
-            setError('Hanya file PDF, DOCX, atau XLSX yang diperbolehkan.');
+        if (!['pdf', 'docx', 'xlsx', 'xls', 'txt'].includes(ext || '')) {
+            setError('Hanya file PDF, DOCX, XLSX, XLS, atau TXT yang diperbolehkan.');
 
             return false;
         }
@@ -107,7 +107,9 @@ setIsOpen(true);
             <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                     <DialogTitle>Unggah Dokumen Baru</DialogTitle>
-                    <DialogDescription>Pilih file PDF, DOCX, atau XLSX. Dokumen akan diproses otomatis menjadi basis pengetahuan AI.</DialogDescription>
+                    <DialogDescription>
+                        Pilih file PDF, DOCX, XLSX, XLS, atau TXT. Untuk riwayat chat TXT, gunakan format You: pertanyaan dan Bot: jawaban agar setiap pasangan masuk ke Review FAQ.
+                    </DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-4 py-4">
@@ -155,12 +157,12 @@ handleFileSelect(e.dataTransfer.files[0]);
 }}
                         onClick={() => fileInputRef.current?.click()}
                     >
-                        <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.docx,.xlsx,.xls" onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])} />
+                        <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.docx,.xlsx,.xls,.txt" onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])} />
                         {!selectedFile ? (
                             <>
                                 <Upload className="mb-2 mx-auto h-8 w-8 text-muted-foreground" />
                                 <p className="text-sm font-medium">Klik atau drag & drop file di sini</p>
-                                <p className="mt-1 text-xs text-muted-foreground">PDF, DOCX, XLSX (Maks. 50MB)</p>
+                                <p className="mt-1 text-xs text-muted-foreground">PDF, DOCX, XLSX, XLS, TXT (Maks. 50MB)</p>
                             </>
                         ) : (
                             <div className="gap-3 justify-center flex items-center">

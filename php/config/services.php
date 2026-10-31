@@ -59,6 +59,15 @@ return [
         'base_url' => env('PYTHON_AI_URL', 'http://localhost:8000'),
     ],
 
+    'airha' => [
+        'base_url' => rtrim((string) env('AIRHA_API_BASE_URL', ''), '/'),
+        'api_key' => env('AIRHA_API_KEY', ''),
+    ],
+
+    'proposal_pdf' => [
+        'enabled' => env('PROPOSAL_PDF_ENABLED', false),
+    ],
+
     'keycloak' => [
         'enabled' => env('KEYCLOAK_ENABLED', false),
         'url' => rtrim(env('KEYCLOAK_URL', 'https://portal-sso.kkp.go.id'), '/'),

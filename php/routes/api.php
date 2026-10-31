@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ChatAudioController;
 use App\Http\Controllers\Webhooks\TelegramWebhookController;
 use App\Http\Controllers\Webhooks\WhatsappWebhookController;
 use App\Http\Controllers\WidgetAuthController;
@@ -20,6 +21,11 @@ Route::middleware(['throttle:30,1', VerifyWidgetOrigin::class])->group(function 
     Route::match(['post', 'options'], '/widget/chat', [WidgetChatController::class, 'process']);
     Route::match(['post', 'options'], '/widget/chat/stream', [WidgetChatController::class, 'stream']);
     Route::match(['post', 'options'], '/widget/auth/logout', [WidgetAuthController::class, 'logout']);
+});
+
+Route::middleware(['throttle:10,1', VerifyWidgetOrigin::class])->group(function () {
+    Route::match(['post', 'options'], '/widget/audio/transcribe', [ChatAudioController::class, 'transcribe']);
+    Route::match(['post', 'options'], '/widget/audio/speech', [ChatAudioController::class, 'speech']);
 });
 
 // Login dibatasi lebih ketat (5x/menit) untuk cegah brute-force NIP+password

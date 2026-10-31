@@ -35,3 +35,20 @@ def test_legal_structure_not_split():
     pasal_1_chunks = [c for c in chunks if "Pasal 1" in c]
     assert len(pasal_1_chunks) == 1
     assert "Kalimat ketiga" in pasal_1_chunks[0]
+
+def test_qa_chunks_repeat_question_for_each_answer_chunk(monkeypatch):
+    service = ChunkingService()
+    monkeypatch.setattr("services.chunking_service.settings.MAX_CHUNK_SIZE", 45)
+    question = "Bagaimana cara mendaftar?"
+    text = (
+        f"Pertanyaan: {question}\nJawaban: "
+        "Pendaftaran dilakukan secara daring melalui situs resmi. "
+        "Peserta harus melengkapi seluruh data yang diminta. "
+        "Informasi jadwal diumumkan melalui kanal resmi."
+    )
+
+    chunks = service.chunk_document(text, "qa_pair", "[TEST] ")
+
+    assert len(chunks) > 1
+    assert all(f"Pertanyaan: {question}" in chunk for chunk in chunks)
+    assert all("Jawaban:" in chunk for chunk in chunks)

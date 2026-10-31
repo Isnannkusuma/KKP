@@ -25,7 +25,7 @@
         @viteReactRefresh
         @vite(['resources/css/app.css', 'resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
         <x-inertia::head>
-            <title>Layanan AI KKP</title>
+            <title>Layanan CS AI Biro SDMAO KKP</title>
         </x-inertia::head>
     </head>
     <body class="font-sans antialiased">

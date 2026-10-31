@@ -9,7 +9,7 @@ export default function Welcome() {
 
     return (
         <>
-            <Head title="Layanan AI KKP — Asisten Kelautan & Perikanan" />
+            <Head title="Layanan CS AI Biro SDMAO KKP" />
 
             {/* Fraunces (display), IBM Plex Sans (body), IBM Plex Mono (label) */}
             <link
@@ -52,7 +52,7 @@ export default function Welcome() {
 
                     <div className="px-6 pb-28 pt-16 z-10 mx-auto max-w-4xl text-center relative sm:px-10 sm:pb-36 sm:pt-24">
                         <p className="mb-5 font-['IBM_Plex_Mono'] text-xs text-[#D9A441] uppercase tracking-[0.2em]">
-                            Layanan AI KKP · Asisten Digital Kelautan &amp; Perikanan
+                            Layanan CS AI Biro SDMAO KKP
                         </p>
                         <h1 className="font-['Fraunces'] text-4xl text-[#EAF3EF] leading-tight tracking-tight sm:text-6xl">
                             Tanya seluk-beluk laut dan

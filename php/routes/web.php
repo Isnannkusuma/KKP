@@ -3,6 +3,7 @@
 use App\Http\Controllers\ApiServiceController;
 use App\Http\Controllers\Auth\KeycloakLoginController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ChatAudioController;
 use App\Http\Controllers\ChatbotSettingController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ChatConversationController;
@@ -59,6 +60,14 @@ Route::post('/chat/process', [ChatController::class, 'process'])
 
 Route::post('/chat/stream', [ChatController::class, 'stream'])
     ->name('chat.stream')
+    ->middleware('throttle:20,1');
+
+Route::post('/chat/audio/transcribe', [ChatAudioController::class, 'transcribe'])
+    ->name('chat.audio.transcribe')
+    ->middleware('throttle:10,1');
+
+Route::post('/chat/audio/speech', [ChatAudioController::class, 'speech'])
+    ->name('chat.audio.speech')
     ->middleware('throttle:20,1');
 
 Route::post('/chat/audits/{auditLog}/feedback', [ChatController::class, 'feedback'])
@@ -150,6 +159,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/service-api', [ApiServiceController::class, 'index'])
             ->name('api-services.index');
 
+        Route::patch('/service-api/airha/status', [ApiServiceController::class, 'setAirhaActive'])
+            ->name('api-services.airha-status');
+
         Route::post('/service-api', [ApiServiceController::class, 'store'])
             ->name('api-services.store');
 
@@ -158,6 +170,9 @@ Route::middleware('auth')->group(function () {
 
         Route::put('/service-api/{apiService}', [ApiServiceController::class, 'update'])
             ->name('api-services.update');
+
+        Route::patch('/service-api/{apiService}/status', [ApiServiceController::class, 'setActive'])
+            ->name('api-services.status');
 
         Route::delete('/service-api/{apiService}', [ApiServiceController::class, 'destroy'])
             ->name('api-services.destroy');
@@ -171,6 +186,13 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/faq-review', [FaqReviewController::class, 'index'])
             ->name('faq-review.index');
+
+        Route::post('/faq-review/upload-source', [FaqReviewController::class, 'upload'])
+            ->name('faq-review.upload-source');
+        Route::post('/faq-review/extract/{document}', [FaqReviewController::class, 'extract'])
+            ->name('faq-review.extract');
+        Route::delete('/faq-review/source/{document}', [FaqReviewController::class, 'destroySource'])
+            ->name('faq-review.destroy-source');
 
         Route::put('/faq-review/{faqEntry}', [FaqReviewController::class, 'update'])
             ->name('faq-review.update');

@@ -7,6 +7,7 @@ use App\Services\ApiServiceRunner;
 use App\Services\BangkomPegawaiService;
 use App\Services\PemetaanPegawaiService;
 use App\Services\PortalPegawaiService;
+use App\Services\ProposalPdfLookupService;
 use App\Services\WidgetIdentityVerifier;
 use App\Services\WidgetSessionToken;
 use Illuminate\Http\JsonResponse;
@@ -21,10 +22,17 @@ class WidgetChatController extends ChatController
         PemetaanPegawaiService $pemetaanPegawaiService,
         BangkomPegawaiService $bangkomPegawaiService,
         ApiServiceRunner $apiServiceRunner,
+        ProposalPdfLookupService $proposalPdfLookupService,
         protected WidgetIdentityVerifier $identityVerifier,
         protected WidgetSessionToken $sessionToken,
     ) {
-        parent::__construct($portalPegawaiService, $pemetaanPegawaiService, $bangkomPegawaiService, $apiServiceRunner);
+        parent::__construct(
+            $portalPegawaiService,
+            $pemetaanPegawaiService,
+            $bangkomPegawaiService,
+            $apiServiceRunner,
+            $proposalPdfLookupService,
+        );
     }
 
     /**

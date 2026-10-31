@@ -1,5 +1,13 @@
 import { Link } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid, BookMarked, PlugZap, Bot } from 'lucide-react';
+import {
+    BookMarked,
+    BookOpen,
+    Bot,
+    CircleHelp,
+    FolderGit2,
+    LayoutGrid,
+    PlugZap,
+} from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -14,8 +22,8 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import {index as dokumenIndex} from '@/routes/dokumen';
-import {index as kategoriIndex} from '@/routes/kategori';
+import { index as dokumenIndex } from '@/routes/dokumen';
+import { index as kategoriIndex } from '@/routes/kategori';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -29,20 +37,25 @@ const mainNavItems: NavItem[] = [
         href: dokumenIndex(),
         icon: BookMarked,
     },
-     {
+    {
         title: 'Kategori Dokumen',
         href: kategoriIndex(),
         icon: BookMarked,
     },
     {
-        title: 'Service API',
-        href: '/service-api',
-        icon: PlugZap,
+        title: 'Review FAQ',
+        href: '/faq-review',
+        icon: CircleHelp,
     },
     {
         title: 'Personalisasi Chatbot',
         href: '/pengaturan-chatbot',
         icon: Bot,
+    },
+    {
+        title: 'Service API',
+        href: '/service-api',
+        icon: PlugZap,
     },
 ];
 

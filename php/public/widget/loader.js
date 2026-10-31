@@ -39,10 +39,11 @@
     ].join(';');
 
     var iframe = document.createElement('iframe');
-    var CHAT_HTML_VERSION = '2'; // naikkan angka ini tiap kali chat.html diupdate, supaya cache browser tidak nyangkut
+    var CHAT_HTML_VERSION = '7'; // naikkan angka ini tiap kali chat.html diupdate, supaya cache browser tidak nyangkut
     iframe.src = API_ORIGIN + '/widget/chat.html?widget_key=' + encodeURIComponent(widgetKey) + '&v=' + CHAT_HTML_VERSION;
     iframe.style.cssText = 'width:100%;height:100%;border:none;';
     iframe.setAttribute('title', 'Asisten Chat');
+    iframe.setAttribute('allow', 'microphone ' + API_ORIGIN);
     container.appendChild(iframe);
 
     iframe.addEventListener('load', function () {
@@ -79,7 +80,7 @@
         'background:#fff', 'color:#1f2937', 'border-radius:14px', 'font:14px/1.4 system-ui,sans-serif',
         'box-shadow:0 6px 24px rgba(0,0,0,.2)', 'z-index:999999', 'cursor:pointer', 'display:none',
     ].join(';');
-    popup.innerHTML = '<b>Halo! 👋</b><br>Saya adalah Layanan AI Informasi Biro SDM Aparatur dan Organisasi KKP' +
+    popup.innerHTML = '<b>Halo! 👋</b><br>Saya adalah Layanan CS AI Biro SDMAO KKP' +
         '<span data-close style="position:absolute;top:6px;right:10px;font-size:16px;color:#9ca3af">×</span>';
 
     var popupTimer = null;

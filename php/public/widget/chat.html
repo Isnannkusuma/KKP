@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Asisten Chat</title>
+<title>Layanan CS AI Biro SDMAO KKP</title>
 <style>
     :root {
         --navy: #16283d;
@@ -75,7 +75,18 @@
         color: var(--text);
         border: 1px solid var(--border);
         border-bottom-left-radius: 4px;
+        min-width: 0;
+        overflow-wrap: anywhere;
     }
+    .msg.bot a {
+        display: inline-block;
+        margin-top: 2px;
+        color: var(--teal);
+        font-weight: 700;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+    .msg.bot a:hover { color: var(--teal-dark); }
     .msg.loading {
         align-self: flex-start;
         color: var(--text-muted);
@@ -113,6 +124,39 @@
     }
     button[type="submit"]:hover { background: var(--teal-dark); }
     button[type="submit"]:disabled { opacity: 0.5; cursor: not-allowed; }
+    #chat-mic {
+        background: white;
+        color: var(--teal);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 8px 10px;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+    #chat-mic svg { display: block; width: 16px; height: 16px; }
+    #chat-mic.recording { color: #b42318; border-color: #fda29b; background: #fff5f4; }
+    #chat-mic:disabled { opacity: 0.5; cursor: not-allowed; }
+    .speech-button {
+        display: block;
+        margin-top: 8px;
+        padding: 4px 8px;
+        color: var(--teal);
+        background: var(--bg-mint);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 11px;
+        cursor: pointer;
+    }
+    .speech-button:disabled { opacity: 0.6; cursor: wait; }
+    .speech-error { display: block; margin-top: 4px; color: #b42318; font-size: 11px; }
+    #voice-status {
+        min-height: 0;
+        padding: 0 12px;
+        background: white;
+        color: var(--text-muted);
+        font-size: 11px;
+    }
+    #voice-status:not(:empty) { padding-bottom: 8px; }
 
     /* Login modal */
     #login-overlay {
@@ -199,7 +243,7 @@
 </head>
 <body>
     <header>
-        <span class="title">Asisten AI KKP</span>
+        <span class="title">Layanan CS AI Biro SDMAO KKP</span>
         <span class="auth-area" id="auth-area">
             <button type="button" id="login-trigger">Login</button>
         </span>
@@ -207,8 +251,16 @@
     <div id="messages"></div>
     <form id="chat-form">
         <input type="text" id="chat-input" placeholder="Tulis pertanyaan..." autocomplete="off" />
+        <button type="button" id="chat-mic" aria-label="Kirim pertanyaan dengan suara" title="Kirim pertanyaan dengan suara (maksimal 60 detik)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="9" y="2" width="6" height="13" rx="3"></rect>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <path d="M12 19v3"></path>
+            </svg>
+        </button>
         <button type="submit" id="chat-submit">Kirim</button>
     </form>
+    <div id="voice-status" role="status" aria-live="polite"></div>
 
     <div id="login-overlay">
         <div id="login-box">
@@ -259,6 +311,8 @@
             var formEl = document.getElementById('chat-form');
             var inputEl = document.getElementById('chat-input');
             var submitEl = document.getElementById('chat-submit');
+            var micEl = document.getElementById('chat-mic');
+            var voiceStatusEl = document.getElementById('voice-status');
             var authAreaEl = document.getElementById('auth-area');
             var loginOverlayEl = document.getElementById('login-overlay');
             var loginFormEl = document.getElementById('login-form');
@@ -267,6 +321,13 @@
             var loginErrorEl = document.getElementById('login-error');
             var loginSubmitEl = document.getElementById('login-submit');
             var loginCloseEl = document.getElementById('login-close');
+            var recorder = null;
+            var recordingStream = null;
+            var recordingChunks = [];
+            var recordingTimeout = null;
+            var voiceBusy = false;
+            var microphoneIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="13" rx="3"></rect><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><path d="M12 19v3"></path></svg>';
+            var stopIcon = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect></svg>';
 
             window.addEventListener('message', function (event) {
                 if (event.data && event.data.type === 'kkp-chat-init') {
@@ -381,10 +442,235 @@
             function addMessage(role, text) {
                 var el = document.createElement('div');
                 el.className = 'msg ' + role;
-                el.textContent = text;
+                if (role === 'bot') {
+                    renderBotMessage(el, text);
+                    addSpeechButton(el, text);
+                } else {
+                    el.textContent = text;
+                }
                 messagesEl.appendChild(el);
                 messagesEl.scrollTop = messagesEl.scrollHeight;
                 return el;
+            }
+
+            function addSpeechButton(element, text) {
+                if (!text.trim()) return;
+
+                function splitSpeechText(value) {
+                    var sentences = value.trim().split(/(?<=[.!?。！？])\s+/u).filter(Boolean);
+                    var chunks = [];
+                    var currentChunk = '';
+
+                    sentences.forEach(function (sentence) {
+                        var remaining = sentence.trim();
+
+                        while (remaining.length > 450) {
+                            var splitAt = remaining.lastIndexOf(' ', 450);
+
+                            if (splitAt < 1) splitAt = 450;
+
+                            var part = remaining.slice(0, splitAt).trim();
+                            remaining = remaining.slice(splitAt).trim();
+
+                            if (currentChunk) {
+                                chunks.push(currentChunk);
+                                currentChunk = '';
+                            }
+
+                            if (part) chunks.push(part);
+                        }
+
+                        if (!remaining) return;
+
+                        if (currentChunk && currentChunk.length + remaining.length + 1 > 450) {
+                            chunks.push(currentChunk);
+                            currentChunk = remaining;
+                        } else {
+                            currentChunk = currentChunk ? currentChunk + ' ' + remaining : remaining;
+                        }
+                    });
+
+                    if (currentChunk) chunks.push(currentChunk);
+
+                    return chunks;
+                }
+
+                var button = document.createElement('button');
+                var error = document.createElement('span');
+                var audio = null;
+                var audioUrls = [];
+                var abortController = null;
+                var playbackId = 0;
+                var isPlaying = false;
+                button.type = 'button';
+                button.className = 'speech-button';
+                button.textContent = '🔊 Dengarkan';
+                button.setAttribute('aria-label', 'Dengarkan jawaban');
+                error.className = 'speech-error';
+
+                button.addEventListener('click', async function () {
+                    error.textContent = '';
+
+                    if (isPlaying || button.disabled) {
+                        playbackId += 1;
+                        if (abortController) abortController.abort();
+                        abortController = null;
+                        audio.pause();
+                        audio = null;
+                        isPlaying = false;
+                        button.textContent = '🔊 Dengarkan';
+                        button.disabled = false;
+
+                        return;
+                    }
+
+                    button.disabled = true;
+                    var chunks = splitSpeechText(text);
+                    var controller = new AbortController();
+                    var currentPlaybackId = playbackId + 1;
+                    playbackId = currentPlaybackId;
+                    abortController = controller;
+
+                    function loadChunk(index) {
+                        if (audioUrls[index]) return Promise.resolve(audioUrls[index]);
+
+                        return fetch(window.location.origin + '/api/widget/audio/speech', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Widget-Key': widgetKey,
+                            },
+                            body: JSON.stringify({
+                                text: chunks[index],
+                                widget_key: widgetKey,
+                                page_origin: pageOrigin,
+                            }),
+                            signal: controller.signal,
+                        }).then(async function (response) {
+                            if (!response.ok) {
+                                var result = await response.json();
+                                throw new Error(result.message || 'Gagal membuat audio jawaban.');
+                            }
+
+                            var url = URL.createObjectURL(await response.blob());
+                            audioUrls[index] = url;
+
+                            return url;
+                        });
+                    }
+
+                    function showError(requestError) {
+                        if (controller.signal.aborted || currentPlaybackId !== playbackId) return;
+
+                        error.textContent = requestError instanceof Error ? requestError.message : 'Audio jawaban tidak dapat diputar.';
+                        isPlaying = false;
+                        button.disabled = false;
+                        button.textContent = '🔊 Dengarkan';
+                        controller.abort();
+                        audio = null;
+                        abortController = null;
+                    }
+
+                    function playChunk(index, preparedUrl) {
+                        if (controller.signal.aborted || currentPlaybackId !== playbackId) return Promise.resolve();
+
+                        var urlPromise = preparedUrl ? Promise.resolve(preparedUrl) : loadChunk(index);
+
+                        return urlPromise.then(function (url) {
+                            if (controller.signal.aborted || currentPlaybackId !== playbackId) return;
+
+                            audio = new Audio(url);
+                            var currentAudio = audio;
+                            var nextChunk = index + 1 < chunks.length
+                                ? loadChunk(index + 1).then(function (url) {
+                                    return { url: url };
+                                }, function (requestError) {
+                                    return { error: requestError };
+                                })
+                                : null;
+                            currentAudio.addEventListener('ended', function () {
+                                if (nextChunk) {
+                                    nextChunk.then(function (result) {
+                                        if ('error' in result) {
+                                            showError(result.error);
+                                            return;
+                                        }
+
+                                        return playChunk(index + 1, result.url);
+                                    }).catch(showError);
+                                } else if (currentPlaybackId === playbackId) {
+                                    audio = null;
+                                    abortController = null;
+                                    isPlaying = false;
+                                    button.textContent = '🔊 Dengarkan';
+                                }
+                            }, { once: true });
+                            currentAudio.addEventListener('error', function () {
+                                showError(new Error('Audio jawaban tidak dapat diputar.'));
+                            }, { once: true });
+
+                            return currentAudio.play().then(function () {
+                                if (currentPlaybackId === playbackId) {
+                                    isPlaying = true;
+                                    button.disabled = false;
+                                    button.textContent = '■ Hentikan';
+                                }
+                            });
+                        });
+                    }
+
+                    try {
+                        await playChunk(0);
+                    } catch (requestError) {
+                        showError(requestError);
+                    }
+
+                    if (!isPlaying && !controller.signal.aborted) {
+                        button.disabled = false;
+                    }
+                });
+
+                element.appendChild(button);
+                element.appendChild(error);
+            }
+
+            function renderBotMessage(element, text) {
+                var urlPattern = /https?:\/\/[^\s<>"']+/gi;
+                var lastIndex = 0;
+                var match;
+
+                while ((match = urlPattern.exec(text)) !== null) {
+                    var rawUrl = match[0];
+                    var url = rawUrl.replace(/[.,;!?]+$/, '');
+                    var trailingText = rawUrl.slice(url.length);
+
+                    if (!url) continue;
+
+                    element.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+
+                    try {
+                        var parsedUrl = new URL(url);
+                        if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+                            element.appendChild(document.createTextNode(url));
+                        } else {
+                            var link = document.createElement('a');
+                            link.href = parsedUrl.href;
+                            link.target = '_blank';
+                            link.rel = 'noopener noreferrer';
+                            link.textContent = 'Buka PDF ↗';
+                            element.appendChild(link);
+                        }
+                    } catch (e) {
+                        element.appendChild(document.createTextNode(url));
+                    }
+
+                    if (trailingText) {
+                        element.appendChild(document.createTextNode(trailingText));
+                    }
+                    lastIndex = match.index + rawUrl.length;
+                }
+
+                element.appendChild(document.createTextNode(text.slice(lastIndex)));
             }
 
             function showHandoverPopup(handover) {
@@ -422,8 +708,112 @@
             addMessage('bot', 'Halo! Ada yang bisa saya bantu terkait informasi kedinasan KKP?');
             renderAuthArea();
 
+            function stopRecording() {
+                if (recordingTimeout) {
+                    clearTimeout(recordingTimeout);
+                    recordingTimeout = null;
+                }
+
+                if (recorder && recorder.state === 'recording') {
+                    recorder.stop();
+                }
+            }
+
+            function transcribeRecording(blob) {
+                var extension = blob.type.indexOf('mp4') !== -1 ? 'm4a' : blob.type.indexOf('ogg') !== -1 ? 'ogg' : 'webm';
+                var formData = new FormData();
+                var submitted = false;
+                formData.append('audio', blob, 'recording.' + extension);
+                formData.append('widget_key', widgetKey);
+                formData.append('page_origin', pageOrigin || '');
+                voiceStatusEl.textContent = 'Mengenali ucapan...';
+
+                fetch(window.location.origin + '/api/widget/audio/transcribe', {
+                    method: 'POST',
+                    headers: { 'X-Widget-Key': widgetKey },
+                    body: formData,
+                })
+                    .then(function (response) {
+                        return response.json().then(function (data) {
+                            if (!response.ok) throw new Error(data.message || 'Gagal mengenali ucapan.');
+                            return data;
+                        });
+                    })
+                    .then(function (data) {
+                        var transcript = (data.text || '').trim();
+                        if (!transcript) throw new Error('Ucapan tidak terdeteksi. Silakan coba lagi.');
+                        voiceStatusEl.textContent = '';
+                        submitted = true;
+                        sendMessage(transcript, false);
+                    })
+                    .catch(function (error) {
+                        voiceStatusEl.textContent = error instanceof Error ? error.message : 'Gagal mengenali ucapan.';
+                    })
+                    .finally(function () {
+                        voiceBusy = false;
+                        if (!submitted) {
+                            micEl.disabled = false;
+                            submitEl.disabled = false;
+                        }
+                    });
+            }
+
+            micEl.addEventListener('click', function () {
+                if (recorder && recorder.state === 'recording') {
+                    stopRecording();
+                    return;
+                }
+
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') {
+                    voiceStatusEl.textContent = 'Browser ini tidak mendukung perekaman suara. Gunakan Chrome, Edge, atau Safari terbaru.';
+                    return;
+                }
+
+                voiceStatusEl.textContent = '';
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(function (stream) {
+                        recordingStream = stream;
+                        recordingChunks = [];
+                        var mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
+                            .find(function (type) { return MediaRecorder.isTypeSupported(type); });
+                        recorder = new MediaRecorder(stream, mimeType ? { mimeType: mimeType } : undefined);
+                        recorder.addEventListener('dataavailable', function (event) {
+                            if (event.data.size > 0) recordingChunks.push(event.data);
+                        });
+                        recorder.addEventListener('stop', function () {
+                            recordingStream.getTracks().forEach(function (track) { track.stop(); });
+                            recordingStream = null;
+                            recorder = null;
+                            micEl.disabled = true;
+                            micEl.classList.remove('recording');
+                            micEl.innerHTML = microphoneIcon;
+                            micEl.setAttribute('aria-label', 'Kirim pertanyaan dengan suara');
+                            var blob = new Blob(recordingChunks, { type: recordingChunks[0] ? recordingChunks[0].type : 'audio/webm' });
+                            if (blob.size === 0) {
+                                voiceBusy = false;
+                                micEl.disabled = false;
+                                submitEl.disabled = false;
+                                voiceStatusEl.textContent = 'Rekaman kosong. Silakan coba lagi.';
+                                return;
+                            }
+                            transcribeRecording(blob);
+                        });
+                        recorder.start();
+                        voiceBusy = true;
+                        micEl.classList.add('recording');
+                        micEl.innerHTML = stopIcon;
+                        micEl.setAttribute('aria-label', 'Selesai merekam');
+                        submitEl.disabled = true;
+                        recordingTimeout = setTimeout(stopRecording, 60000);
+                    })
+                    .catch(function () {
+                        voiceStatusEl.textContent = 'Mikrofon tidak dapat diakses. Periksa izin mikrofon pada browser Anda.';
+                    });
+            });
+
             formEl.addEventListener('submit', function (event) {
                 event.preventDefault();
+                if (voiceBusy) return;
                 var message = inputEl.value.trim();
                 if (!message) return;
                 inputEl.value = '';
@@ -436,6 +826,7 @@
                 }
 
                 submitEl.disabled = true;
+                micEl.disabled = true;
                 var loadingEl = addMessage('loading', 'Sedang mengetik...');
 
                 var streamEl = null;
@@ -502,7 +893,9 @@
 
                         var answer = data.answer || 'Maaf, terjadi kesalahan. Silakan coba lagi.';
                         var botEl = streamEl || addMessage('bot', answer);
-                        botEl.textContent = answer;
+                        botEl.replaceChildren();
+                        renderBotMessage(botEl, answer);
+                        addSpeechButton(botEl, answer);
                         if (typeof data.similarity === 'number') {
                             var sim = document.createElement('div');
                             sim.style.cssText = 'margin-top:6px;font-size:10px;opacity:.7';
@@ -519,6 +912,7 @@
                     })
                     .finally(function () {
                         submitEl.disabled = false;
+                        micEl.disabled = false;
                         inputEl.focus();
                     });
             }

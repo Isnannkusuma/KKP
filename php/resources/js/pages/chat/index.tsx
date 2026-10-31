@@ -5,6 +5,7 @@ import {
     LogIn,
     MessageCircle,
     LogOut,
+    Menu,
     MessageSquarePlus,
     Search,
     Trash2,
@@ -18,6 +19,7 @@ import WelcomeScreen from '@/components/chat/welcome-screen';
 import type { ChatSuggestion } from '@/components/chat/welcome-screen';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { dashboard, login, logout } from '@/routes';
 import type { ChatMessage as ChatMessageType } from '@/types';
 
@@ -82,6 +84,7 @@ function ChatPage({ user, conversations = [], activeConversation = null }: ChatP
     const [messages, setMessages] = useState<ChatMessageType[]>(activeConversation?.messages ?? []);
     const [conversationId, setConversationId] = useState<string | null>(activeConversation?.id ?? null);
     const [search, setSearch] = useState('');
+    const [historyOpen, setHistoryOpen] = useState(false);
     const [pendingDelete, setPendingDelete] = useState<ConversationItem | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [loginPrompt, setLoginPrompt] = useState<{ open: boolean; message: string; redirectTo: string }>({
@@ -94,7 +97,74 @@ function ChatPage({ user, conversations = [], activeConversation = null }: ChatP
     const isMale = ['l', 'm', 'laki', 'laki-laki', 'male'].includes((user?.gender ?? '').trim().toLowerCase());
     const userLabel = user ? `${isMale ? 'Bapak' : 'Ibu'} ${user.name}` : 'Bapak/Ibu';
 
+    const handleLogout = () => {
+        router.flushAll();
+    };
+
     const filteredConversations = conversations.filter((item) => item.title.toLowerCase().includes(search.trim().toLowerCase()));
+    const conversationSidebar = (
+        <>
+            <div className="flex flex-col items-center border-b border-[#d6e7e8] pb-6">
+                <img src="/KKP%20LOGO%203.png" alt="Kementerian Kelautan dan Perikanan" className="aspect-square h-20 w-20 shrink-0 rounded-full object-contain ring-2 ring-[#9bd9d2]" />
+                <span className="mt-3 text-center text-[10px] font-semibold leading-tight text-[#365765]">KEMENTERIAN<br />KELAUTAN DAN PERIKANAN<br />REPUBLIK INDONESIA</span>
+            </div>
+            <div className="relative mt-5">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b8b91]" />
+                <input value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Cari percakapan" placeholder="Cari percakapan" className="h-10 w-full rounded-xl border border-[#d6e7e8] bg-white pl-9 pr-3 text-xs text-[#183746] outline-none placeholder:text-[#789197] focus:border-[#66b8b1] focus:bg-white" />
+            </div>
+            {user ? (
+                <>
+                    <Link href="/chat" onClick={() => {
+                        setMessages([]);
+                        setConversationId(null);
+                        setHistoryOpen(false);
+                    }} className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#087f82] text-xs font-semibold text-white transition hover:bg-[#066d70]">
+                        <MessageSquarePlus className="h-4 w-4" /> Chat baru
+                    </Link>
+                    <p className="mt-5 text-[10px] font-semibold tracking-wide text-[#66838a]">RIWAYAT</p>
+                    <div className="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto">
+                        {filteredConversations.length === 0 && (
+                            <p className="px-1 text-[11px] text-[#789197]">{conversations.length === 0 ? 'Belum ada riwayat percakapan.' : 'Percakapan tidak ditemukan.'}</p>
+                        )}
+                        {filteredConversations.map((item) => (
+                            <div key={item.id} className={`group flex items-center gap-1 rounded-xl border px-3 py-2.5 ${item.id === conversationId ? 'border-[#cfe5e3] bg-[#eaf5f3]' : 'border-transparent hover:bg-[#eef6f6]'}`}>
+                                <Link href={`/chat/c/${item.id}`} onClick={() => setHistoryOpen(false)} className="min-w-0 flex-1 truncate text-xs font-medium text-[#183746]" title={item.title}>{item.title}</Link>
+                                <button
+                                    type="button"
+                                    aria-label={`Hapus percakapan ${item.title}`}
+                                    onClick={() => setPendingDelete(item)}
+                                    className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-[#789197] opacity-0 transition hover:bg-white hover:text-red-600 focus:opacity-100 group-hover:opacity-100"
+                                >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            ) : (
+                <>
+                    <p className="mt-5 text-[10px] font-semibold tracking-wide text-[#66838a]">PERCAKAPAN</p>
+                    <div className="mt-2 flex items-center gap-3 rounded-2xl border border-[#cfe5e3] bg-[#eaf5f3] px-3 py-3 shadow-sm shadow-[#123746]/5">
+                        <div className="grid h-9 w-9 place-items-center rounded-full bg-white text-[#078589]"><Bot className="h-4 w-4" /></div>
+                        <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">Asisten AI</p><p className="truncate text-[10px] text-[#66838a]">Masuk untuk menyimpan riwayat</p></div>
+                        <span className="h-2 w-2 rounded-full bg-[#17a58f]" />
+                    </div>
+                </>
+            )}
+            {user && (
+                <div className="mt-auto border-t border-[#d6e7e8] pt-5">
+                    <Link
+                        href={logout()}
+                        as="button"
+                        onClick={handleLogout}
+                        className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#cbdfe1] bg-white text-xs font-semibold text-[#183746] transition hover:bg-[#edf7f6]"
+                    >
+                        <LogOut className="h-4 w-4" /> Keluar
+                    </Link>
+                </div>
+            )}
+        </>
+    );
 
     const handleDeleteConversation = async () => {
         if (!pendingDelete) {
@@ -125,10 +195,6 @@ function ChatPage({ user, conversations = [], activeConversation = null }: ChatP
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isLoading]);
-
-    const handleLogout = () => {
-        router.flushAll();
-    };
 
     const handleSuggestionClick = (suggestion: ChatSuggestion) => {
         if (suggestion.requiresLogin && !user) {
@@ -224,6 +290,7 @@ function ChatPage({ user, conversations = [], activeConversation = null }: ChatP
                     auditId: data.audit_id || null,
                     graphic: Boolean(data.graphic),
                     completeList: Boolean(data.complete_list),
+                    confirmation: data.confirmation ?? null,
                     similarity: typeof data.similarity === 'number' ? data.similarity : null,
                     created_at: new Date().toISOString(),
                 };
@@ -271,7 +338,7 @@ function ChatPage({ user, conversations = [], activeConversation = null }: ChatP
 
     return (
         <>
-            <Head title="Asisten AI Instansi" />
+            <Head title="Layanan CS AI Biro SDMAO KKP" />
 
             <Dialog open={loginPrompt.open} onOpenChange={(open) => setLoginPrompt((prev) => ({ ...prev, open }))}>
                 <DialogContent className="w-[calc(100%-2rem)] max-w-[390px] gap-0 overflow-hidden border border-[#d2e5e6] bg-white p-0 text-[#183746] shadow-2xl shadow-[#123746]/20 [&>button]:hidden">
@@ -286,7 +353,7 @@ function ChatPage({ user, conversations = [], activeConversation = null }: ChatP
                     <DialogHeader className="items-center text-center">
                         <div className="mt-7 flex items-center gap-2 text-sm font-semibold">
                             <img src="/KKP%20LOGO%203.png" alt="" className="aspect-square h-7 w-7 shrink-0 rounded-full object-contain ring-1 ring-[#9bd9d2]" />
-                            <span>Layanan AI KKP</span>
+                            <span>Layanan CS AI Biro SDMAO KKP</span>
                         </div>
                         <DialogTitle className="mt-5 text-[26px] font-bold tracking-normal text-[#183746]">Masuk ke akun Anda</DialogTitle>
                         <DialogDescription className="mt-1 max-w-[290px] text-sm leading-5 text-[#52717b]">
@@ -330,90 +397,52 @@ function ChatPage({ user, conversations = [], activeConversation = null }: ChatP
             <div className="h-dvh overflow-hidden bg-[#edf6f6] p-0 font-sans text-[#183746] lg:grid lg:place-items-center lg:p-8">
                 <main className="flex h-full min-h-0 w-full max-w-[1440px] overflow-hidden bg-white shadow-[0_24px_56px_rgba(16,57,68,0.12)] lg:rounded-[24px] lg:border lg:border-[#d6e7e8]">
                     <aside className="hidden w-[240px] shrink-0 flex-col border-r border-[#d6e7e8] bg-[#f7fbfb] px-5 py-6 lg:flex">
-                        <div className="flex flex-col items-center border-b border-[#d6e7e8] pb-6">
-                            <img src="/KKP%20LOGO%203.png" alt="Kementerian Kelautan dan Perikanan" className="aspect-square h-20 w-20 shrink-0 rounded-full object-contain ring-2 ring-[#9bd9d2]" />
-                            <span className="mt-3 text-center text-[10px] font-semibold leading-tight text-[#365765]">KEMENTERIAN<br />KELAUTAN DAN PERIKANAN<br />REPUBLIK INDONESIA</span>
-                        </div>
-                        <div className="relative mt-5">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b8b91]" />
-                            <input value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Cari percakapan" placeholder="Cari percakapan" className="h-10 w-full rounded-xl border border-[#d6e7e8] bg-white pl-9 pr-3 text-xs text-[#183746] outline-none placeholder:text-[#789197] focus:border-[#66b8b1] focus:bg-white" />
-                        </div>
-                        {user ? (
-                            <>
-                                <Link href="/chat" onClick={() => {
- setMessages([]); setConversationId(null); 
-}} className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[#087f82] text-xs font-semibold text-white transition hover:bg-[#066d70]">
-                                    <MessageSquarePlus className="h-4 w-4" /> Chat baru
-                                </Link>
-                                <p className="mt-5 text-[10px] font-semibold tracking-wide text-[#66838a]">RIWAYAT</p>
-                                <div className="mt-2 min-h-0 flex-1 space-y-1 overflow-y-auto">
-                                    {filteredConversations.length === 0 && (
-                                        <p className="px-1 text-[11px] text-[#789197]">{conversations.length === 0 ? 'Belum ada riwayat percakapan.' : 'Percakapan tidak ditemukan.'}</p>
-                                    )}
-                                    {filteredConversations.map((item) => (
-                                        <div key={item.id} className={`group flex items-center gap-1 rounded-xl border px-3 py-2.5 ${item.id === conversationId ? 'border-[#cfe5e3] bg-[#eaf5f3]' : 'border-transparent hover:bg-[#eef6f6]'}`}>
-                                            <Link href={`/chat/c/${item.id}`} className="min-w-0 flex-1 truncate text-xs font-medium text-[#183746]" title={item.title}>{item.title}</Link>
-                                            <button
-                                                type="button"
-                                                aria-label={`Hapus percakapan ${item.title}`}
-                                                onClick={() => setPendingDelete(item)}
-                                                className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-[#789197] opacity-0 transition hover:bg-white hover:text-red-600 focus:opacity-100 group-hover:opacity-100"
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <p className="mt-5 text-[10px] font-semibold tracking-wide text-[#66838a]">PERCAKAPAN</p>
-                                <div className="mt-2 flex items-center gap-3 rounded-2xl border border-[#cfe5e3] bg-[#eaf5f3] px-3 py-3 shadow-sm shadow-[#123746]/5">
-                                    <div className="grid h-9 w-9 place-items-center rounded-full bg-white text-[#078589]"><Bot className="h-4 w-4" /></div>
-                                    <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">Asisten AI</p><p className="truncate text-[10px] text-[#66838a]">Masuk untuk menyimpan riwayat</p></div>
-                                    <span className="h-2 w-2 rounded-full bg-[#17a58f]" />
-                                </div>
-                            </>
-                        )}
-                        {user && (
-                            <div className="mt-auto border-t border-[#d6e7e8] pt-5">
-                                <Link
-                                    href={logout()}
-                                    as="button"
-                                    onClick={handleLogout}
-                                    className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#cbdfe1] bg-white text-xs font-semibold text-[#183746] transition hover:bg-[#edf7f6]"
-                                >
-                                    <LogOut className="h-4 w-4" /> Keluar
-                                </Link>
-                            </div>
-                        )}
+                        {conversationSidebar}
                     </aside>
 
                     <section className="flex min-h-0 min-w-0 flex-1 flex-col bg-[radial-gradient(circle_at_top_right,_#dff3f0_0,_#eff7f7_42%,_#f7faf9_100%)] p-4 sm:p-6 lg:p-5">
-                        <header className="flex items-center justify-between px-1 pb-5">
-                            <div className="flex items-center gap-2"><img src="/KKP%20LOGO%203.png" alt="" className="aspect-square h-7 w-7 shrink-0 rounded-full object-contain ring-1 ring-[#9bd9d2]" /><h1 className="text-sm font-semibold text-[#183746]">Layanan AI KKP</h1></div>
-                            <div className="flex items-center gap-2">
-                                <div className="flex items-center gap-2 rounded-full border border-[#d6e7e8] bg-white/80 py-2 pl-3 pr-2 text-[11px] font-medium text-[#365765]"><UserRound className="h-3.5 w-3.5 text-[#078589]" /> {userLabel}</div>
-                                {user?.role === 'admin' && (
-                                    <Link
-                                        href={dashboard()}
-                                        aria-label="Buka dashboard admin"
-                                        className="flex h-8 items-center gap-1.5 rounded-lg border border-[#cbdfe1] bg-white px-3 text-[11px] font-semibold text-[#087f82] transition hover:bg-[#edf7f6]"
-                                    >
-                                        <LayoutDashboard className="h-3.5 w-3.5" />
-                                        <span className="hidden sm:inline">Dashboard</span>
-                                    </Link>
-                                )}
-                                {!user && (
-                                    <Link
-                                        href={login()}
-                                        className="flex h-8 items-center gap-1.5 rounded-lg border border-[#cbdfe1] bg-white px-3 text-[11px] font-semibold text-[#087f82] transition hover:bg-[#edf7f6]"
-                                    >
-                                        <LogIn className="h-3.5 w-3.5" /> Masuk
-                                    </Link>
-                                )}
-                            </div>
-                        </header>
+                        <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+                            <header className="flex items-center justify-between px-1 pb-5">
+                                <div className="flex items-center gap-2">
+                                    <SheetTrigger asChild>
+                                        <button type="button" aria-label="Buka riwayat percakapan" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-[#cbdfe1] bg-white text-[#087f82] transition hover:bg-[#edf7f6] lg:hidden">
+                                            <Menu className="h-4 w-4" />
+                                        </button>
+                                    </SheetTrigger>
+                                    <div className="flex items-center gap-2"><img src="/KKP%20LOGO%203.png" alt="" className="aspect-square h-7 w-7 shrink-0 rounded-full object-contain ring-1 ring-[#9bd9d2]" /><h1 className="text-sm font-semibold text-[#183746]">Layanan CS AI Biro SDMAO KKP</h1></div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 rounded-full border border-[#d6e7e8] bg-white/80 py-2 pl-3 pr-2 text-[11px] font-medium text-[#365765]"><UserRound className="h-3.5 w-3.5 text-[#078589]" /> {userLabel}</div>
+                                    {user?.role === 'admin' && (
+                                        <Link
+                                            href={dashboard()}
+                                            aria-label="Buka dashboard admin"
+                                            className="flex h-8 items-center gap-1.5 rounded-lg border border-[#cbdfe1] bg-white px-3 text-[11px] font-semibold text-[#087f82] transition hover:bg-[#edf7f6]"
+                                        >
+                                            <LayoutDashboard className="h-3.5 w-3.5" />
+                                            <span className="hidden sm:inline">Dashboard</span>
+                                        </Link>
+                                    )}
+                                    {!user && (
+                                        <Link
+                                            href={login()}
+                                            className="flex h-8 items-center gap-1.5 rounded-lg border border-[#cbdfe1] bg-white px-3 text-[11px] font-semibold text-[#087f82] transition hover:bg-[#edf7f6]"
+                                        >
+                                            <LogIn className="h-4 w-4" /> Masuk
+                                        </Link>
+                                    )}
+                                </div>
+                            </header>
+                            <SheetContent side="left" className="w-[280px] border-r border-[#d6e7e8] bg-[#f7fbfb] p-0 text-[#183746]">
+                                <SheetHeader className="sr-only">
+                                    <SheetTitle>Riwayat percakapan</SheetTitle>
+                                    <SheetDescription>Cari dan buka percakapan sebelumnya.</SheetDescription>
+                                </SheetHeader>
+                                <div className="flex h-full flex-col px-5 py-6">
+                                    {conversationSidebar}
+                                </div>
+                            </SheetContent>
+                        </Sheet>
                         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[#d6e7e8] bg-white/85 shadow-[0_12px_32px_rgba(16,57,68,0.06)]">
                             <div className="flex items-center justify-between px-5 py-4 text-xs"><h2 className="font-semibold text-[#183746]">Percakapan terbaru</h2><span className="text-[#789197]">Saat ini</span></div>
                             <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 sm:px-5">
@@ -423,7 +452,12 @@ function ChatPage({ user, conversations = [], activeConversation = null }: ChatP
                         ) : (
                             <>
                                 {messages.map((msg) => (
-                                    <ChatMessage key={msg.id} message={msg} onFeedback={handleFeedback} />
+                                    <ChatMessage
+                                        key={msg.id}
+                                        message={msg}
+                                        onFeedback={handleFeedback}
+                                        onConfirmationSubmit={(answer) => void handleSendMessage(answer)}
+                                    />
                                 ))}
 
                                 {isLoading && !messages.some((m) => m.id.startsWith('stream-')) && (

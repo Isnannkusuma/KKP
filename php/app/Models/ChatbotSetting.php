@@ -67,11 +67,26 @@ class ChatbotSetting extends Model
     ];
 
     protected $fillable = [
-        'is_enabled', 'custom_instructions', 'assistant_name', 'assistant_role', 'additional_info',
-        'tone', 'warmth', 'enthusiasm', 'emoji', 'layout', 'headings_lists', 'query_aliases',
+        'is_enabled',
+        'airha_enabled',
+        'custom_instructions',
+        'assistant_name',
+        'assistant_role',
+        'additional_info',
+        'tone',
+        'warmth',
+        'enthusiasm',
+        'emoji',
+        'layout',
+        'headings_lists',
+        'query_aliases',
     ];
 
-    protected $casts = ['is_enabled' => 'boolean', 'query_aliases' => 'array'];
+    protected $casts = [
+        'is_enabled' => 'boolean',
+        'airha_enabled' => 'boolean',
+        'query_aliases' => 'array',
+    ];
 
     public static function current(): self
     {

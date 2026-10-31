@@ -157,12 +157,12 @@ export default function Dashboard({ period, stats, daily, contextGroups, popular
                         <CardContent className="space-y-4">
                             {contextGroups.data.length > 0 ? contextGroups.data.map((group) => (
                                 <div key={group.context} className="border-b border-blue-50 pb-4 last:border-0 last:pb-0">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <button type="button" onClick={() => setSelectedContext(group.context)} className="flex min-w-0 flex-1 items-center gap-2 text-left" title="Lihat daftar pertanyaan">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <button type="button" onClick={() => setSelectedContext(group.context)} className="flex min-w-0 items-center gap-2 text-left" title="Lihat daftar pertanyaan">
                                             <ChevronRight className="size-4 shrink-0 text-blue-400" />
-                                            <p className="truncate text-sm font-semibold text-slate-800">{group.context}</p>
+                                            <p className="line-clamp-2 text-sm font-semibold break-words text-slate-800 sm:truncate">{group.context}</p>
                                         </button>
-                                        <div className="flex shrink-0 items-center gap-2">
+                                        <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                                             {group.unanswered > 0 && <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">{group.unanswered} belum terjawab</Badge>}
                                             <Badge variant="secondary" className="border-blue-100 bg-blue-50 text-blue-700">{group.total} pertanyaan</Badge>
                                             <button type="button" title="Hapus konteks" aria-label={`Hapus konteks ${group.context}`} onClick={() => deleteAudits(group.questions.map((question) => question.question))} className="grid size-7 place-items-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="size-3.5" /></button>

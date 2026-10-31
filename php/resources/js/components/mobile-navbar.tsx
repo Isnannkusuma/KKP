@@ -13,11 +13,20 @@ const items = [
         href: kategoriIndex(),
         icon: '/document-category.png',
     },
-    { title: 'Service API', href: '/service-api', icon: '/service-api.png' },
+    {
+        title: 'Review FAQ',
+        href: '/faq-review',
+        icon: '/chatbot-personalize.png',
+    },
     {
         title: 'Personalisasi Chatbot',
         href: '/pengaturan-chatbot',
         icon: '/chatbot-personalize.png',
+    },
+    {
+        title: 'Service API',
+        href: '/service-api',
+        icon: '/service-api.png',
     },
 ];
 
@@ -92,8 +101,9 @@ export function MobileNavbar() {
                         src="/glass.png"
                         alt=""
                         aria-hidden="true"
-                        className="pointer-events-none absolute top-0 left-0 h-12 w-1/5 object-fill px-1 transition-transform duration-500 ease-[cubic-bezier(0.34,1.4,0.64,1)]"
+                        className="pointer-events-none absolute top-0 left-0 h-12 object-fill px-1 transition-transform duration-500 ease-[cubic-bezier(0.34,1.4,0.64,1)]"
                         style={{
+                            width: `${100 / items.length}%`,
                             transform: `translateX(${position * 100}%)`,
                         }}
                     />

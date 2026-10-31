@@ -1,14 +1,153 @@
 import { Chart, Filler, Legend, LineElement, PointElement, RadarController, RadialLinearScale, Tooltip } from 'chart.js';
-import { Bot, ThumbsDown, ThumbsUp, User } from 'lucide-react';
+import { Bot, LoaderCircle, Square, ThumbsDown, ThumbsUp, User, Volume2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
-import type { ChatMessage as ChatMessageType } from '@/types';
+import type { FormEvent, ReactNode } from 'react';
+import type { ChatMessage as ChatMessageType, ConfirmationRequest } from '@/types';
 
 Chart.register(RadarController, RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
+
+function splitSpeechText(text: string): string[] {
+    const sentences = text.trim().split(/(?<=[.!?。！？])\s+/u).filter(Boolean);
+    const chunks: string[] = [];
+    let currentChunk = '';
+
+    for (const sentence of sentences) {
+        let remaining = sentence.trim();
+
+        while (remaining.length > 450) {
+            let splitAt = remaining.lastIndexOf(' ', 450);
+
+            if (splitAt < 1) {
+                splitAt = 450;
+            }
+
+            const part = remaining.slice(0, splitAt).trim();
+            remaining = remaining.slice(splitAt).trim();
+
+            if (currentChunk) {
+                chunks.push(currentChunk);
+                currentChunk = '';
+            }
+
+            if (part) {
+                chunks.push(part);
+            }
+        }
+
+        if (!remaining) {
+            continue;
+        }
+
+        if (currentChunk && currentChunk.length + remaining.length + 1 > 450) {
+            chunks.push(currentChunk);
+            currentChunk = remaining;
+        } else {
+            currentChunk = currentChunk ? `${currentChunk} ${remaining}` : remaining;
+        }
+    }
+
+    if (currentChunk) {
+        chunks.push(currentChunk);
+    }
+
+    return chunks;
+}
 
 interface ChatMessageProps {
     message: ChatMessageType;
     onFeedback?: (messageId: string, auditId: string, feedback: 'positive' | 'negative') => void;
+    onConfirmationSubmit?: (message: string) => void;
+}
+
+function ConfirmationForm({ request, onSubmit }: { request: ConfirmationRequest; onSubmit: (message: string) => void }) {
+    const [values, setValues] = useState<Record<string, string | string[]>>(() => Object.fromEntries(request.fields.map((field) => [field.name, field.type === 'checkbox' ? [] : ''])));
+    const [submitted, setSubmitted] = useState(false);
+    const hasValue = (value: string | string[] | undefined) => Array.isArray(value) ? value.length > 0 : Boolean(value?.trim());
+
+    const submit = (event: FormEvent) => {
+        event.preventDefault();
+
+        if (submitted || request.fields.some((field) => field.required && !hasValue(values[field.name]))) {
+            return;
+        }
+
+        const answer = request.fields
+            .filter((field) => hasValue(values[field.name]))
+            .map((field) => {
+                const value = values[field.name];
+
+                return `${field.label}: ${Array.isArray(value) ? value.join(', ') : value}`;
+            })
+            .join('\n');
+
+        setSubmitted(true);
+        onSubmit(answer);
+    };
+
+    return (
+        <form onSubmit={submit} className="mt-3 w-full rounded-2xl border border-[#d6e7e8] bg-[#f8fbfb] p-4">
+            <p className="font-semibold leading-6 text-[#183746]">{request.title}</p>
+            {request.description && <p className="mt-1 text-xs leading-5 text-[#52717b]">{request.description}</p>}
+            <fieldset disabled={submitted} className="mt-4 space-y-4">
+                {request.fields.map((field) => (
+                    <div key={field.name}>
+                        {field.type === 'radio' || field.type === 'checkbox' ? (
+                            <div className="space-y-2">
+                                {field.options?.map((option) => (
+                                    <label key={option.value} className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 text-sm text-[#183746] transition hover:bg-white">
+                                        <input
+                                            type={field.type}
+                                            name={field.type === 'radio' ? field.name : `${field.name}[]`}
+                                            value={option.value}
+                                            checked={field.type === 'radio'
+                                                ? values[field.name] === option.value
+                                                : Array.isArray(values[field.name]) && values[field.name].includes(option.value)}
+                                            required={field.type === 'radio' && field.required}
+                                            onChange={(event) => setValues((current) => {
+                                                if (field.type === 'radio') {
+                                                    return { ...current, [field.name]: event.target.value };
+                                                }
+
+                                                const currentValue = current[field.name];
+                                                const selected = Array.isArray(currentValue) ? currentValue : [];
+                                                const next = event.target.checked
+                                                    ? [...selected, option.value]
+                                                    : selected.filter((value) => value !== option.value);
+
+                                                return { ...current, [field.name]: next };
+                                            })}
+                                            className="h-4 w-4 accent-[#087f82]"
+                                        />
+                                        <span>{option.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        ) : (
+                            <label className="block">
+                                <span className="mb-1.5 block text-xs font-medium text-[#365765]">
+                                    {field.label}{field.required ? ' *' : ''}
+                                </span>
+                                <input
+                                    type="text"
+                                    value={typeof values[field.name] === 'string' ? values[field.name] : ''}
+                                    required={field.required}
+                                    placeholder={field.placeholder}
+                                    onChange={(event) => setValues((current) => ({ ...current, [field.name]: event.target.value }))}
+                                    className="h-11 w-full rounded-xl border border-[#bfcfd1] bg-white px-3 text-sm text-[#183746] outline-none placeholder:text-[#92a4a8] focus:border-[#087f82] focus:ring-2 focus:ring-[#087f82]/15"
+                                />
+                            </label>
+                        )}
+                    </div>
+                ))}
+                <button
+                    type="submit"
+                    className="h-11 w-full rounded-xl bg-[#087f82] text-sm font-semibold text-white transition hover:bg-[#066d70] disabled:cursor-default disabled:bg-[#9dbfc0]"
+                >
+                    {submitted ? 'Terkirim' : (request.submitLabel ?? 'Lanjutkan')}
+                </button>
+            </fieldset>
+        </form>
+    );
 }
 
 function isBangkomResponse(content: string): boolean {
@@ -959,8 +1098,170 @@ function renderCompleteList(content: string): ReactNode {
     return <div className="space-y-2">{blocks}</div>;
 }
 
-export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
+function renderMessageWithLinks(content: string): ReactNode {
+    const normalizedContent = content.replace(/<(https?:\/\/[^>\s]+)>/gi, '$1');
+    const parts = normalizedContent.split(/(https?:\/\/[^\s<>"']+)/gi);
+
+    return parts.map((part, index) => {
+        if (!/^https?:\/\//i.test(part)) {
+            return part;
+        }
+
+        try {
+            const url = new URL(part);
+
+            if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+                return part;
+            }
+
+            return (
+                <a
+                    key={`link-${index}`}
+                    href={url.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="break-all text-teal-700 underline decoration-teal-500 underline-offset-2 hover:text-teal-900"
+                >
+                    Buka PDF
+                </a>
+            );
+        } catch {
+            return part;
+        }
+    });
+}
+
+export default function ChatMessage({ message, onFeedback, onConfirmationSubmit }: ChatMessageProps) {
     const isAi = message.role === 'assistant';
+    const [isLoadingSpeech, setIsLoadingSpeech] = useState(false);
+    const [isSpeaking, setIsSpeaking] = useState(false);
+    const [speechError, setSpeechError] = useState('');
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const audioUrlsRef = useRef<string[]>([]);
+    const speechAbortRef = useRef<AbortController | null>(null);
+    const speechPlaybackIdRef = useRef(0);
+
+    useEffect(() => () => {
+        speechAbortRef.current?.abort();
+        audioRef.current?.pause();
+
+        audioUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    }, []);
+
+    const handleSpeak = async () => {
+        setSpeechError('');
+
+        if (isSpeaking || isLoadingSpeech) {
+            speechPlaybackIdRef.current += 1;
+            speechAbortRef.current?.abort();
+            speechAbortRef.current = null;
+            audioRef.current?.pause();
+            audioRef.current = null;
+            setIsSpeaking(false);
+            setIsLoadingSpeech(false);
+
+            return;
+        }
+
+        const chunks = splitSpeechText(message.content);
+        const controller = new AbortController();
+        const playbackId = speechPlaybackIdRef.current + 1;
+        speechPlaybackIdRef.current = playbackId;
+        speechAbortRef.current = controller;
+        setIsLoadingSpeech(true);
+
+        const loadChunk = async (index: number): Promise<string> => {
+            const cachedUrl = audioUrlsRef.current[index];
+
+            if (cachedUrl) {
+                return cachedUrl;
+            }
+
+            const response = await fetch('/chat/audio/speech', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({ text: chunks[index] }),
+                signal: controller.signal,
+            });
+
+            if (!response.ok) {
+                const result = await response.json() as { message?: string };
+
+                throw new Error(result.message || 'Gagal membuat audio jawaban.');
+            }
+
+            const audioUrl = URL.createObjectURL(await response.blob());
+            audioUrlsRef.current[index] = audioUrl;
+
+            return audioUrl;
+        };
+
+        const showSpeechError = (error: unknown) => {
+            if (controller.signal.aborted || playbackId !== speechPlaybackIdRef.current) {
+                return;
+            }
+
+            setSpeechError(error instanceof Error ? error.message : 'Audio jawaban tidak dapat diputar.');
+            setIsSpeaking(false);
+            setIsLoadingSpeech(false);
+            controller.abort();
+            audioRef.current?.pause();
+            audioRef.current = null;
+            speechAbortRef.current = null;
+        };
+
+        const playChunk = async (index: number, preparedUrl?: string): Promise<void> => {
+            if (playbackId !== speechPlaybackIdRef.current || controller.signal.aborted) {
+                return;
+            }
+
+            const audioUrl = preparedUrl ?? await loadChunk(index);
+            const audio = new Audio(audioUrl);
+            audioRef.current = audio;
+
+            const nextChunk = index + 1 < chunks.length
+                ? loadChunk(index + 1).then(
+                    (url) => ({ url }),
+                    (error: unknown) => ({ error }),
+                )
+                : null;
+            audio.onended = () => {
+                if (nextChunk) {
+                    void nextChunk.then((result) => {
+                        if ('error' in result) {
+                            showSpeechError(result.error);
+
+                            return;
+                        }
+
+                        return playChunk(index + 1, result.url).catch(showSpeechError);
+                    });
+                } else if (playbackId === speechPlaybackIdRef.current) {
+                    audioRef.current = null;
+                    speechAbortRef.current = null;
+                    setIsSpeaking(false);
+                }
+            };
+            audio.onerror = () => showSpeechError(new Error('Audio jawaban tidak dapat diputar.'));
+
+            await audio.play();
+
+            if (playbackId === speechPlaybackIdRef.current) {
+                setIsSpeaking(true);
+                setIsLoadingSpeech(false);
+            }
+        };
+
+        try {
+            await playChunk(0);
+        } catch (error) {
+            showSpeechError(error);
+        }
+    };
 
     return (
         <div className={`mb-5 flex min-w-0 gap-3 ${isAi ? '' : 'flex-row-reverse'}`}>
@@ -981,11 +1282,11 @@ export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
                         renderCompleteList(message.content)
                     ) : isAi && !message.graphic ? (
                         <p className="whitespace-pre-wrap leading-relaxed wrap-break-words">
-                            {message.content}
+                            {renderMessageWithLinks(message.content)}
                         </p>
                     ) : isAi && isCasualGreeting(message.content) ? (
                         <p className="whitespace-pre-wrap leading-relaxed wrap-break-words">
-                            {message.content}
+                            {renderMessageWithLinks(message.content)}
                         </p>
                     ) : isAi && isPersonalProfileResponse(message.content) ? (
                         renderPersonalProfile(message.content)
@@ -995,14 +1296,30 @@ export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
                         renderMappingProfile(message.content)
                     ) : (
                         <p className="whitespace-pre-wrap leading-relaxed wrap-break-words">
-                            {message.content}
+                            {renderMessageWithLinks(message.content)}
                         </p>
+                    )}
+
+                    {message.confirmation && onConfirmationSubmit && (
+                        <ConfirmationForm request={message.confirmation} onSubmit={onConfirmationSubmit} />
                     )}
 
                 </div>
 
                 <div className={`mt-1 flex items-center gap-1 px-1 ${isAi ? 'text-slate-400' : 'text-slate-500'}`}>
                     <span className="mr-1 text-[10px]">{new Date(message.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+                    {isAi && !message.id.startsWith('stream-') && message.content.trim() && (
+                        <button
+                            type="button"
+                            aria-label={isSpeaking ? 'Hentikan audio jawaban' : 'Dengarkan jawaban'}
+                            title={isSpeaking ? 'Hentikan audio' : 'Dengarkan jawaban'}
+                            onClick={() => void handleSpeak()}
+                            disabled={isLoadingSpeech}
+                            className="grid size-6 place-items-center rounded-md transition hover:bg-slate-200 hover:text-slate-700 disabled:opacity-50"
+                        >
+                            {isLoadingSpeech ? <LoaderCircle className="size-3.5 animate-spin" /> : isSpeaking ? <Square className="size-3 fill-current" /> : <Volume2 className="size-3.5" />}
+                        </button>
+                    )}
                     {isAi && message.auditId && onFeedback && (
                         <>
                             <button type="button" aria-label="Jawaban membantu" title="Jawaban membantu" onClick={() => onFeedback(message.id, message.auditId!, 'positive')} className={`grid size-6 place-items-center rounded-md transition ${message.feedback === 'positive' ? 'bg-emerald-100 text-emerald-700' : 'hover:bg-slate-200 hover:text-slate-700'}`}><ThumbsUp className="size-3.5" /></button>
@@ -1010,6 +1327,7 @@ export default function ChatMessage({ message, onFeedback }: ChatMessageProps) {
                         </>
                     )}
                 </div>
+                {speechError && <p className="mt-1 px-1 text-[11px] text-red-700" role="alert">{speechError}</p>}
             </div>
         </div>
     );

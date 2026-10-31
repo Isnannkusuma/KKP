@@ -64,7 +64,7 @@ class DocumentController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'document' => 'required|file|mimes:pdf,docx,xlsx,xls|max:51200',
+            'document' => 'required|file|mimes:pdf,docx,xlsx,xls,txt|max:51200',
             'category_id' => 'required|exists:categories,id',
             'access_level' => 'required|in:public,internal,confidential',
         ]);
@@ -106,7 +106,7 @@ class DocumentController extends Controller
     public function update(Request $request, Document $document)
     {
         $request->validate([
-            'document' => 'sometimes|file|mimes:pdf,docx,xlsx,xls|max:51200',
+            'document' => 'sometimes|file|mimes:pdf,docx,xlsx,xls,txt|max:51200',
             'category_id' => 'sometimes|exists:categories,id',
             'access_level' => 'sometimes|in:public,internal,confidential',
         ]);

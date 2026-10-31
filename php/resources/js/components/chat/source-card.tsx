@@ -7,6 +7,7 @@ interface SourceItem {
     document_id: string;
     filename: string;
     similarity_score: number;
+    source_type?: 'api';
 }
 
 interface SourceCardProps {
@@ -29,12 +30,12 @@ return null;
                 <div className="gap-2 flex items-center">
                     <FileText className="h-4 w-4 text-[#078589]" />
                     <CardTitle className="text-sm font-medium">
-                        Sumber Referensi ({sources.length} Dokumen)
+                        Sumber Referensi ({sources.length} sumber)
                     </CardTitle>
                 </div>
                 {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </CardHeader>
-            
+
             {isExpanded && (
                 <CardContent className="grid pt-0 px-4 pb-4 gap-2">
                     {sources.map((source, index) => (
@@ -46,7 +47,9 @@ return null;
                                 </span>
                             </div>
                             <Badge variant="secondary" className="ml-2 shrink-0 bg-[#e6f3f1] text-[10px] text-[#087f82]">
-                                {(source.similarity_score * 100).toFixed(1)}% match
+                                {source.source_type === 'api'
+                                    ? 'API'
+                                    : `${(source.similarity_score * 100).toFixed(1)}% match`}
                             </Badge>
                         </div>
                     ))}

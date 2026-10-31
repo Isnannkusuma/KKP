@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ApiService;
+use App\Models\ChatbotSetting;
 use App\Models\User;
 use App\Services\ApiServiceRunner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,6 +15,72 @@ test('only admins can access api service management', function () {
     $this->actingAs($user)
         ->get(route('api-services.index'))
         ->assertForbidden();
+});
+
+test('admin can disable an api service from its dashboard listing', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $service = ApiService::create([
+        'name' => 'Chatbot Kepegawaian',
+        'description' => 'Data kepegawaian dari chatbot lain',
+        'method' => 'GET',
+        'url' => 'https://example.com/pegawai/{{nip}}',
+        'headers' => [],
+        'query_params' => [],
+        'body' => [],
+        'request_schema' => [],
+        'response_fields' => [],
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($admin)
+        ->patch(route('api-services.status', $service), ['is_active' => false])
+        ->assertRedirect(route('api-services.index'))
+        ->assertSessionHas('success', 'Service API berhasil dinonaktifkan.');
+
+    expect($service->fresh()->is_active)->toBeFalse();
+});
+
+test('non-admin users cannot change an api service status', function () {
+    $user = User::factory()->create(['role' => 'user']);
+    $service = ApiService::create([
+        'name' => 'Chatbot Kepegawaian',
+        'method' => 'GET',
+        'url' => 'https://example.com/pegawai/{{nip}}',
+        'headers' => [],
+        'query_params' => [],
+        'body' => [],
+        'request_schema' => [],
+        'response_fields' => [],
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->patch(route('api-services.status', $service), ['is_active' => false])
+        ->assertForbidden();
+
+    expect($service->fresh()->is_active)->toBeTrue();
+});
+
+test('admin can enable AiRHA integration using its code-managed configuration', function () {
+    config(['services.airha.api_key' => 'configured-test-key']);
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $this->actingAs($admin)
+        ->patch(route('api-services.airha-status'), ['is_active' => true])
+        ->assertRedirect(route('api-services.index'))
+        ->assertSessionHas('success', 'Sumber AiRHA berhasil diaktifkan.');
+
+    expect(ChatbotSetting::query()->firstOrFail()->airha_enabled)->toBeTrue();
+});
+
+test('admin cannot enable AiRHA until its API key is configured', function () {
+    config(['services.airha.api_key' => '']);
+    $admin = User::factory()->create(['role' => 'admin']);
+
+    $this->actingAs($admin)
+        ->patch(route('api-services.airha-status'), ['is_active' => true])
+        ->assertRedirect()
+        ->assertSessionHasErrors('airha');
 });
 
 test('admin can create an api service with encrypted secrets', function () {

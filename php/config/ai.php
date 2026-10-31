@@ -133,6 +133,9 @@ return [
             'key' => env('OPENAI_API_KEY'),
             'url' => env('OPENAI_URL') ?: 'https://api.openai.com/v1',
             'model' => 'gpt-6-luna',
+            'speech_model' => env('OPENAI_SPEECH_MODEL', 'gpt-4o-mini-tts'),
+            'speech_voice' => env('OPENAI_SPEECH_VOICE', 'marin'),
+            'transcription_model' => env('OPENAI_TRANSCRIPTION_MODEL', 'gpt-transcribe'),
             'store' => env('OPENAI_STORE', true),
         ],
 

@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { Pencil, Play, Plus, Trash2, X } from 'lucide-react';
+import { Pencil, Play, Plus, Power, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,8 @@ import type { ApiServiceItem } from '@/types';
 
 interface Props {
     services: ApiServiceItem[];
+    airhaEnabled: boolean;
+    airhaConfigured: boolean;
 }
 
 interface FormState {
@@ -67,7 +69,11 @@ function parseJson(value: string, field: string): unknown {
     }
 }
 
-export default function ApiServiceIndex({ services }: Props) {
+export default function ApiServiceIndex({
+    services,
+    airhaEnabled,
+    airhaConfigured,
+}: Props) {
     const { flash } = usePage().props as { flash?: { success?: string } };
     const [form, setForm] = useState<FormState>(emptyForm);
     const [editing, setEditing] = useState<ApiServiceItem | null>(null);
@@ -372,8 +378,51 @@ export default function ApiServiceIndex({ services }: Props) {
                     <p className="text-muted-foreground">
                         Daftarkan API dari dashboard. Isi input, tentukan
                         request, lalu pilih data response yang ingin dipakai.
+                        Service nonaktif tidak akan dipanggil oleh chatbot.
                     </p>
                 </div>
+
+                <section className="flex flex-col gap-3 rounded-xl border bg-card p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 className="font-semibold">Sumber AiRHA SIANTER</h2>
+                        <p className="text-sm text-muted-foreground">
+                            Konfigurasi endpoint dan API key dikelola di
+                            konfigurasi aplikasi. Sumber hanya digunakan untuk
+                            pertanyaan potensi atau kompetensi diri oleh
+                            pengguna yang sudah login.
+                        </p>
+                        {!airhaConfigured && (
+                            <p className="mt-1 text-xs text-amber-700">
+                                Atur AIRHA_API_KEY pada environment aplikasi
+                                sebelum mengaktifkan sumber ini.
+                            </p>
+                        )}
+                        <p
+                            className={
+                                airhaEnabled
+                                    ? 'mt-1 text-xs text-green-600'
+                                    : 'mt-1 text-xs text-muted-foreground'
+                            }
+                        >
+                            {airhaEnabled ? 'Aktif' : 'Nonaktif'}
+                        </p>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        disabled={!airhaConfigured && !airhaEnabled}
+                        onClick={() =>
+                            router.patch(
+                                '/service-api/airha/status',
+                                { is_active: !airhaEnabled },
+                                { preserveScroll: true },
+                            )
+                        }
+                    >
+                        <Power className="size-4" />
+                        {airhaEnabled ? 'Nonaktifkan' : 'Aktifkan'}
+                    </Button>
+                </section>
 
                 <form
                     onSubmit={submit}
@@ -633,6 +682,23 @@ export default function ApiServiceIndex({ services }: Props) {
                                 </p>
                             </div>
                             <div className="flex shrink-0 gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    aria-label={`${service.is_active ? 'Nonaktifkan' : 'Aktifkan'} ${service.name}`}
+                                    onClick={() =>
+                                        router.patch(
+                                            `/service-api/${service.id}/status`,
+                                            { is_active: !service.is_active },
+                                            { preserveScroll: true },
+                                        )
+                                    }
+                                >
+                                    <Power className="size-4" />
+                                    {service.is_active
+                                        ? 'Nonaktifkan'
+                                        : 'Aktifkan'}
+                                </Button>
                                 <Button
                                     variant="outline"
                                     size="sm"

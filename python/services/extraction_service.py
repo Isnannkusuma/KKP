@@ -1,4 +1,5 @@
 import os
+import re
 import tempfile
 import uuid
 import fitz  # PyMuPDF
@@ -18,8 +19,66 @@ class ExtractionService:
             return self._extract_docx(file_path)
         elif ext in ['.xlsx', '.csv']:
             return self._extract_spreadsheet(file_path, ext)
+        elif ext == '.txt':
+            return self._extract_text(file_path)
         else:
             raise ExtractionError(f"Unsupported file extension: {ext}")
+
+    def _extract_text(self, file_path: str) -> List[Dict[str, Any]]:
+        with open(file_path, encoding='utf-8-sig') as text_file:
+            text = text_file.read()
+
+        qa_pairs = self._extract_qa_pairs(text)
+        if qa_pairs is not None:
+            return [
+                {
+                    'type': 'qa_pair',
+                    'text': f"Pertanyaan: {question}\nJawaban: {answer}",
+                    'needs_ocr': False
+                }
+                for question, answer in qa_pairs
+            ]
+
+        return [{
+            'type': 'text',
+            'text': text,
+            'needs_ocr': False
+        }]
+
+    def extract_qa_pairs(self, text: str) -> List[tuple[str, str]] | None:
+        return self._extract_qa_pairs(text)
+
+    def split_qa_pair(self, text: str) -> Dict[str, str]:
+        question, answer = text.split('\nJawaban: ', 1)
+        question = question.removeprefix('Pertanyaan: ').strip()
+
+        return {'question': question, 'answer': answer.strip()}
+
+    def _extract_qa_pairs(self, text: str) -> List[tuple[str, str]] | None:
+        speaker_pattern = re.compile(r'(?m)^(You|Bot):[ \t]*', re.IGNORECASE)
+        matches = list(speaker_pattern.finditer(text))
+
+        if not matches or text[:matches[0].start()].strip():
+            return None
+
+        qa_pairs = []
+        pending_question = None
+
+        for index, match in enumerate(matches):
+            end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+            message = text[match.end():end].strip()
+            speaker = match.group(1).lower()
+
+            if not message:
+                continue
+
+            if speaker == 'you':
+                pending_question = message
+            elif speaker == 'bot' and pending_question is not None:
+                qa_pairs.append((pending_question, message))
+                pending_question = None
+
+        return qa_pairs or None
 
     def _extract_pdf(self, file_path: str) -> List[Dict[str, Any]]:
         elements = []
@@ -95,15 +154,32 @@ class ExtractionService:
         else:
             df = pd.read_excel(file_path)
             
-        # Untuk spreadsheet, kita ubah tiap baris menjadi teks kontekstual
-        # agar saat di-chunk (row-level), konteks header tidak hilang.
         headers = df.columns.tolist()
-        
+        normalized_headers = {
+            str(header).strip().lower(): str(header)
+            for header in headers
+        }
+        question_header = next((normalized_headers[key] for key in normalized_headers
+                                if key in {'question', 'pertanyaan', 'query', 'q'}), None)
+        answer_header = next((normalized_headers[key] for key in normalized_headers
+                              if key in {'answer', 'jawaban', 'response', 'respons', 'a'}), None)
+
         for _, row in df.iterrows():
+            if question_header and answer_header:
+                question = row.get(question_header)
+                answer = row.get(answer_header)
+                if pd.notna(question) and pd.notna(answer):
+                    elements.append({
+                        'type': 'qa_pair',
+                        'text': f'Pertanyaan: {str(question).strip()}\nJawaban: {str(answer).strip()}',
+                        'needs_ocr': False,
+                    })
+                    continue
+
             row_text = " | ".join([f"{h}: {v}" for h, v in zip(headers, row) if pd.notna(v)])
             elements.append({
-                'type': 'table_row', 
-                'text': row_text, 
+                'type': 'table_row',
+                'text': row_text,
                 'needs_ocr': False
             })
         return elements

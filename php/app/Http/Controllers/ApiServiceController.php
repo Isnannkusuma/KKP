@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ApiService;
+use App\Models\ChatbotSetting;
 use App\Services\ApiServiceRunner;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -35,7 +36,38 @@ class ApiServiceController extends Controller
             ];
         });
 
-        return Inertia::render('api-service/index', ['services' => $services]);
+        return Inertia::render('api-service/index', [
+            'services' => $services,
+            'airhaEnabled' => (bool) ChatbotSetting::query()->first()?->airha_enabled,
+            'airhaConfigured' => filled(config('services.airha.api_key'))
+                && filled(config('services.airha.base_url')),
+        ]);
+    }
+
+    public function setAirhaActive(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'is_active' => 'required|boolean',
+        ]);
+
+        if ($validated['is_active'] && (
+            blank(config('services.airha.api_key'))
+            || blank(config('services.airha.base_url'))
+        )) {
+            return back()->withErrors([
+                'airha' => 'API key AiRHA belum diatur pada konfigurasi aplikasi.',
+            ]);
+        }
+
+        $setting = ChatbotSetting::query()->first() ?? new ChatbotSetting;
+        $setting->airha_enabled = $validated['is_active'];
+        $setting->save();
+
+        $message = $validated['is_active']
+            ? 'Sumber AiRHA berhasil diaktifkan.'
+            : 'Sumber AiRHA berhasil dinonaktifkan.';
+
+        return to_route('api-services.index')->with('success', $message);
     }
 
     public function store(Request $request): RedirectResponse
@@ -67,6 +99,23 @@ class ApiServiceController extends Controller
         $apiService->delete();
 
         return to_route('api-services.index')->with('success', 'Service API berhasil dihapus.');
+    }
+
+    public function setActive(Request $request, ApiService $apiService): RedirectResponse
+    {
+        $validated = $request->validate([
+            'is_active' => 'required|boolean',
+        ]);
+
+        $apiService->update([
+            'is_active' => $validated['is_active'],
+        ]);
+
+        $message = $validated['is_active']
+            ? 'Service API berhasil diaktifkan.'
+            : 'Service API berhasil dinonaktifkan.';
+
+        return to_route('api-services.index')->with('success', $message);
     }
 
     public function inspect(Request $request): JsonResponse

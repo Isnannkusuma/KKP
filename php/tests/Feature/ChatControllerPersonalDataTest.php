@@ -5,6 +5,7 @@ use App\Services\ApiServiceRunner;
 use App\Services\BangkomPegawaiService;
 use App\Services\PemetaanPegawaiService;
 use App\Services\PortalPegawaiService;
+use App\Services\ProposalPdfLookupService;
 
 function makeChatController(): ChatController
 {
@@ -13,6 +14,7 @@ function makeChatController(): ChatController
         new PemetaanPegawaiService,
         new BangkomPegawaiService,
         new ApiServiceRunner,
+        new ProposalPdfLookupService,
     );
 }
 
@@ -43,6 +45,50 @@ it('does not require login for general employee questions but protects personal 
         ->and($requiresLogin('siapa saja pegawai yang dilantik hari ini?'))->toBeFalse()
         ->and($requiresLogin('berapa NIP pegawai saya?'))->toBeTrue()
         ->and($requiresLogin('informasi pribadi saya secara lengkap'))->toBeTrue();
+});
+
+it('limits AiRHA requests to authenticated personal employment topics', function () {
+    $controller = makeChatController();
+    $method = new ReflectionMethod(ChatController::class, 'airhaTopicsForPersonalQuestion');
+    $user = (object) ['nip' => '198801012023011001'];
+
+    expect($method->invoke($controller, 'Bagaimana kompetensi saya?', $user))->toBe(['kompetensi'])
+        ->and($method->invoke($controller, 'Apa potensi dan kompetensi saya?', $user))->toBe(['potensi', 'kompetensi'])
+        ->and($method->invoke($controller, 'Bagaimana kompetensi pegawai?', $user))->toBe([])
+        ->and($method->invoke($controller, 'Bagaimana kompetensi saya?', null))->toBe([])
+        ->and($method->invoke($controller, 'Apa kompetensi saya untuk NIP 198801012023011002?', $user))->toBe([]);
+});
+
+it('does not treat polite requests for regulations as personal profile questions', function () {
+    $controller = makeChatController();
+    $isPersonalSummary = new ReflectionMethod(ChatController::class, 'isPersonalSummaryQuestion');
+    $isPersonalContext = new ReflectionMethod(ChatController::class, 'isPersonalDataContextQuery');
+    $shouldReturnPersonalData = new ReflectionMethod(ChatController::class, 'shouldReturnPersonalDataDirectly');
+    $requiresLogin = new ReflectionMethod(ChatController::class, 'requiresLoginForPersonalData');
+    $buildPersonalContext = new ReflectionMethod(ChatController::class, 'buildPersonalContext');
+    $question = 'Tolong berikan saya informasi terkait Permen KP nomor 3 tahun 2026.';
+    $policyQuestion = 'Saya ingin tahu Permenpan RB tentang kebijakan pangkat dan pensiun.';
+
+    expect($isPersonalSummary->invoke($controller, $question))->toBeFalse()
+        ->and($isPersonalContext->invoke($controller, $question))->toBeFalse()
+        ->and($buildPersonalContext->invoke($controller, $question, (object) ['nip' => null]))->toBe('')
+        ->and($shouldReturnPersonalData->invoke($controller, $policyQuestion))->toBeFalse()
+        ->and($requiresLogin->invoke($controller, $policyQuestion))->toBeFalse();
+});
+
+it('recognizes personal status and leave clarification without treating regulations as profile requests', function () {
+    $controller = makeChatController();
+    $isEmploymentStatus = new ReflectionMethod(ChatController::class, 'isEmploymentStatusQuestion');
+    $isLeaveClarification = new ReflectionMethod(ChatController::class, 'isLeaveClarificationRequest');
+    $employmentStatusFromData = new ReflectionMethod(ChatController::class, 'employmentStatusFromData');
+
+    expect($isEmploymentStatus->invoke($controller, 'Apakah status kepegawaian saya PNS atau PPPK?'))->toBeTrue()
+        ->and($isLeaveClarification->invoke($controller, 'Saya ingin mengajukan izin cuti'))->toBeTrue()
+        ->and($isLeaveClarification->invoke($controller, 'Saya ingin mengajukan cuti sakit'))->toBeFalse()
+        ->and($employmentStatusFromData->invoke($controller, ['jenis_peg' => 'PPPK']))->toBe('PPPK')
+        ->and($employmentStatusFromData->invoke($controller, ['jenis_peg' => 'Pegawai Pemerintah dengan Perjanjian Kerja']))->toBe('PPPK')
+        ->and($employmentStatusFromData->invoke($controller, ['jenis_peg' => 'PNS']))->toBe('PNS')
+        ->and($employmentStatusFromData->invoke($controller, ['jenis_peg' => 'Non-PNS']))->toBeNull();
 });
 
 it('extracts pangkat and unit kerja from personal context', function () {

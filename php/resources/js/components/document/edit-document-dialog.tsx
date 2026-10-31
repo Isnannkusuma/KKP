@@ -97,11 +97,11 @@ return <FileSpreadsheet className="h-5 w-5 text-green-600" />;
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Ganti File (Opsional)</label>
                         <div className="p-4 border-2 border-dashed rounded-lg text-center cursor-pointer hover:border-primary/50 transition-colors" onClick={() => fileInputRef.current?.click()}>
-                            <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.docx,.xlsx,.xls" onChange={(e) => e.target.files?.[0] && setSelectedFile(e.target.files[0])} />
+                            <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.docx,.xlsx,.xls,.txt" onChange={(e) => e.target.files?.[0] && setSelectedFile(e.target.files[0])} />
                             {!selectedFile ? (
                                 <div className="text-muted-foreground text-sm">
                                     <Upload className="mb-1 mx-auto h-6 w-6" />
-                                    Klik untuk mengganti file (Maks. 50MB)
+                                    Klik untuk mengganti file (PDF, DOCX, XLSX, XLS, TXT; Maks. 50MB)
                                 </div>
                             ) : (
                                 <div className="gap-3 justify-center flex items-center">

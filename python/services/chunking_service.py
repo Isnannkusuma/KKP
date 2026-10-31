@@ -49,10 +49,30 @@ class ChunkingService:
     def chunk_document(self, text: str, doc_type: str, metadata_prefix: str) -> List[str]:
         if doc_type == "table" or doc_type == "table_row":
             return self._row_level_chunk(text, metadata_prefix)
+        elif doc_type == "qa_pair":
+            return self._qa_pair_chunk(text, metadata_prefix)
         elif doc_type == "legal":
             return self._structure_aware_chunk(text, metadata_prefix)
         else:
             return self._narrative_chunk(text, metadata_prefix)
+
+    def _qa_pair_chunk(self, text: str, prefix: str) -> List[str]:
+        question_prefix = "Pertanyaan: "
+        answer_separator = "\nJawaban: "
+
+        if not text.startswith(question_prefix) or answer_separator not in text:
+            return self._narrative_chunk(text, prefix)
+
+        question, answer = text[len(question_prefix):].split(answer_separator, 1)
+        answer_chunks = self._narrative_chunk(answer.strip(), "")
+
+        if not answer_chunks:
+            answer_chunks = [""]
+
+        return [
+            f"{prefix}Pertanyaan: {question.strip()}\nJawaban: {answer_chunk}"
+            for answer_chunk in answer_chunks
+        ]
 
     def _narrative_chunk(self, text: str, prefix: str) -> List[str]:
         sentences = self._protect_and_split_sentences(text)

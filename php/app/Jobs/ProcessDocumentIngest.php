@@ -101,8 +101,7 @@ class ProcessDocumentIngest implements ShouldQueue
 
                 $document->update([
                     'status' => $newStatus,
-                    // total_chunks tidak dikembalikan Python saat ini, bisa diabaikan atau di-set 0
-                    'total_chunks' => $responseData['total_chunks'] ?? 544,
+                    'total_chunks' => (int) ($responseData['total_chunks'] ?? 0),
                 ]);
 
                 Log::info('✅ Dokumen berhasil diproses Python', [

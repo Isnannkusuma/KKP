@@ -17,8 +17,48 @@ from core.config import settings
 router = APIRouter()
 logger = structlog.get_logger()
 limiter = Limiter(key_func=get_remote_address)
-
 extraction_service = ExtractionService()
+
+
+def extract_qa_pairs_from_text(text: str, existing_pairs: list[dict]) -> list[dict]:
+    parsed = extraction_service.extract_qa_pairs(text)
+    if parsed is None:
+        return existing_pairs
+
+    return [
+        {"question": question, "answer": answer}
+        for question, answer in parsed
+    ]
+
+
+@router.post("/extract")
+@limiter.limit("10/minute")
+async def extract_document(request: Request, file: UploadFile = File(...)):
+    temp_file_path = f"./uploads/extract_{uuid.uuid4().hex}_{file.filename}"
+    os.makedirs("./uploads", exist_ok=True)
+
+    with open(temp_file_path, "wb") as buffer:
+        buffer.write(await file.read())
+
+    try:
+        elements = await extraction_service.extract(temp_file_path)
+        pairs = []
+        for element in elements:
+            if element.get('type') == 'qa_pair':
+                pairs.append(extraction_service.split_qa_pair(element['text']))
+
+        if file.filename and file.filename.lower().endswith('.pdf'):
+            pairs = extract_qa_pairs_from_text('\n'.join(
+                element['text'] for element in elements if element.get('text')
+            ), pairs)
+
+        return {"qa_pairs": pairs}
+    except Exception as exception:
+        logger.error("extract_failed", error=str(exception))
+        raise HTTPException(status_code=422, detail="Dokumen tidak dapat diekstrak")
+    finally:
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
 ocr_service = OCRService()
 cleaning_service = CleaningService()
 chunking_service = ChunkingService()
@@ -52,13 +92,18 @@ async def ingest_document(
             await vector_repo.delete_chunks_by_document_id(document_id)
         
         # 3. Process file (Extract → Clean → Chunk → Embed → Insert)
-        await process_document_pipeline(
+        pipeline_result = await process_document_pipeline(
             document_id=document_id,
             file_path=temp_file_path,
             category_slug=category_slug
         )
-        
-        return {"status": "success", "document_id": document_id}
+
+        return {
+            "status": "success",
+            "document_id": document_id,
+            "total_chunks": pipeline_result["total_chunks"],
+            "transcript_qa_pairs": pipeline_result["transcript_qa_pairs"],
+        }
         
     except Exception as e:
         logger.error("ingest_failed", document_id=document_id, error=str(e))
@@ -80,6 +125,15 @@ async def process_document_pipeline(
     
     # 1. Extract
     elements = await extraction_service.extract(file_path)
+    transcript_qa_pairs = [
+        extraction_service.split_qa_pair(element['text'])
+        for element in elements
+        if element.get('type') == 'qa_pair'
+    ]
+    if file_path.lower().endswith('.pdf') and not transcript_qa_pairs:
+        transcript_qa_pairs = extract_qa_pairs_from_text('\n'.join(
+            element['text'] for element in elements if element.get('text')
+        ), [])
     logger.info("extraction_complete", document_id=document_id, elements_count=len(elements))
     
     # 2. Kumpulkan SEMUA teks dan metadata terlebih dahulu (Tanpa Embed dulu)
@@ -122,6 +176,7 @@ async def process_document_pipeline(
                 chunk_index += 1
     
     # 3. EMBEDDING SECARA BERTAHAP (BATCH PROCESSING) agar memori aman saat file besar
+    final_chunks = []
     if all_texts_to_embed:
         logger.info("embedding_started", total_chunks=len(all_texts_to_embed), batch_size=settings.EMBEDDING_BATCH_SIZE)
 
@@ -154,8 +209,16 @@ async def process_document_pipeline(
     else:
         logger.warning("no_chunks_generated", document_id=document_id)
 
+    return {
+        "total_chunks": len(final_chunks),
+        "transcript_qa_pairs": transcript_qa_pairs,
+    }
+
 def get_chunking_strategy(category_slug: str, element_type: str) -> str:
     """Pilih strategi chunking berdasarkan kategori dan tipe elemen"""
+    if element_type == 'qa_pair':
+        return 'qa_pair'
+
     if element_type in ['table', 'table_row']:
         return 'table'
     
