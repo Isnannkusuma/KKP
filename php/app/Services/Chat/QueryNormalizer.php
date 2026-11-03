@@ -38,6 +38,12 @@ class QueryNormalizer
             $normalized,
         );
 
+        $normalized = preg_replace(
+            '/\b(?:izin\s+)?libur(?:\s+cuti)?\b/iu',
+            'cuti',
+            $normalized,
+        ) ?? $normalized;
+
         if ($normalized === null) {
             throw new \RuntimeException('Unable to normalize the search query.');
         }

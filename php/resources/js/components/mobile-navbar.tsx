@@ -1,4 +1,11 @@
 import { Link } from '@inertiajs/react';
+import {
+    BookMarked,
+    Bot,
+    CircleHelp,
+    LayoutGrid,
+    PlugZap,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { dashboard } from '@/routes';
@@ -6,27 +13,27 @@ import { index as dokumenIndex } from '@/routes/dokumen';
 import { index as kategoriIndex } from '@/routes/kategori';
 
 const items = [
-    { title: 'Dashboard', href: dashboard(), icon: '/Dashboard.png' },
-    { title: 'Dokumen', href: dokumenIndex(), icon: '/document.png' },
+    { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
+    { title: 'Dokumen', href: dokumenIndex(), icon: BookMarked },
     {
         title: 'Kategori Dokumen',
         href: kategoriIndex(),
-        icon: '/document-category.png',
+        icon: BookMarked,
     },
     {
         title: 'Review FAQ',
         href: '/faq-review',
-        icon: '/chatbot-personalize.png',
+        icon: CircleHelp,
     },
     {
         title: 'Personalisasi Chatbot',
         href: '/pengaturan-chatbot',
-        icon: '/chatbot-personalize.png',
+        icon: Bot,
     },
     {
         title: 'Service API',
         href: '/service-api',
-        icon: '/service-api.png',
+        icon: PlugZap,
     },
 ];
 
@@ -119,10 +126,9 @@ export function MobileNavbar() {
                         }
                         className="relative flex h-12 flex-1 items-center justify-center"
                     >
-                        <img
-                            src={item.icon}
-                            alt=""
-                            className="h-6 w-auto max-w-6 shrink-0 object-contain"
+                        <item.icon
+                            aria-hidden="true"
+                            className="size-6 shrink-0 text-green-900"
                         />
                     </Link>
                 ))}

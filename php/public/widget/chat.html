@@ -34,7 +34,14 @@
         gap: 8px;
         flex-shrink: 0;
     }
-    header .title { font-weight: 700; font-size: 14px; }
+    header .title {
+        min-width: 0;
+        overflow: hidden;
+        font-weight: 700;
+        font-size: 14px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
     header .auth-area { font-size: 12px; display: flex; align-items: center; gap: 8px; }
     header .auth-area button {
         background: var(--teal);
@@ -47,6 +54,23 @@
         cursor: pointer;
     }
     header .auth-area button:hover { background: var(--teal-dark); }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    #widget-close {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255,255,255,.35);
+        border-radius: 50%;
+        background: transparent;
+        color: white;
+        font-size: 22px;
+        line-height: 1;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+    #widget-close:hover { background: rgba(255,255,255,.12); }
     #messages {
         flex: 1;
         overflow-y: auto;
@@ -244,9 +268,12 @@
 <body>
     <header>
         <span class="title">Layanan CS AI Biro SDMAO KKP</span>
-        <span class="auth-area" id="auth-area">
-            <button type="button" id="login-trigger">Login</button>
-        </span>
+        <div class="header-actions">
+            <span class="auth-area" id="auth-area">
+                <button type="button" id="login-trigger">Login</button>
+            </span>
+            <button type="button" id="widget-close" aria-label="Tutup widget chat">&times;</button>
+        </div>
     </header>
     <div id="messages"></div>
     <form id="chat-form">
@@ -330,10 +357,18 @@
             var stopIcon = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect></svg>';
 
             window.addEventListener('message', function (event) {
-                if (event.data && event.data.type === 'kkp-chat-init') {
-                    pageOrigin = event.data.pageOrigin || null;
+                if (
+                    event.source === window.parent &&
+                    event.data &&
+                    event.data.type === 'kkp-chat-init'
+                ) {
+                    pageOrigin = event.origin;
                     identityToken = event.data.identityToken || null;
                 }
+            });
+
+            document.getElementById('widget-close').addEventListener('click', function () {
+                window.parent.postMessage({ type: 'kkp-chat-close' }, pageOrigin || '*');
             });
 
             function renderAuthArea() {
@@ -635,18 +670,21 @@
             }
 
             function renderBotMessage(element, text) {
+                var normalizedText = text
+                    .replace(/<(https?:\/\/[^>\s]+)>/gi, '$1')
+                    .replace(/\[[^\]]+\]\((https?:\/\/[^)\s]+)\)/gi, '$1');
                 var urlPattern = /https?:\/\/[^\s<>"']+/gi;
                 var lastIndex = 0;
                 var match;
 
-                while ((match = urlPattern.exec(text)) !== null) {
+                while ((match = urlPattern.exec(normalizedText)) !== null) {
                     var rawUrl = match[0];
                     var url = rawUrl.replace(/[.,;!?]+$/, '');
                     var trailingText = rawUrl.slice(url.length);
 
                     if (!url) continue;
 
-                    element.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+                    element.appendChild(document.createTextNode(normalizedText.slice(lastIndex, match.index)));
 
                     try {
                         var parsedUrl = new URL(url);
@@ -657,7 +695,7 @@
                             link.href = parsedUrl.href;
                             link.target = '_blank';
                             link.rel = 'noopener noreferrer';
-                            link.textContent = 'Buka PDF ↗';
+                            link.textContent = /\.pdf(?:$|[?#])/i.test(parsedUrl.href) ? 'Buka PDF ↗' : 'Buka tautan ↗';
                             element.appendChild(link);
                         }
                     } catch (e) {
@@ -670,7 +708,7 @@
                     lastIndex = match.index + rawUrl.length;
                 }
 
-                element.appendChild(document.createTextNode(text.slice(lastIndex)));
+                element.appendChild(document.createTextNode(normalizedText.slice(lastIndex)));
             }
 
             function showHandoverPopup(handover) {

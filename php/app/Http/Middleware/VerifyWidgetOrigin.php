@@ -58,7 +58,7 @@ class VerifyWidgetOrigin
             $response->headers->set('Vary', 'Origin');
         }
 
-        $response->headers->set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, X-Widget-Key');
         $response->headers->set('Access-Control-Max-Age', '3600');
 

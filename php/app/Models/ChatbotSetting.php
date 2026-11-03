@@ -216,7 +216,7 @@ class ChatbotSetting extends Model
         }
 
         $system = "Anda menulis ulang jawaban resmi instansi agar sesuai gaya yang diminta admin.\n"
-            ."ATURAN: pertahankan semua fakta, angka, nama, tanggal, dan tautan persis seperti aslinya; jangan menambah atau mengurangi informasi; "
+            .'ATURAN: pertahankan semua fakta, angka, nama, tanggal, dan tautan persis seperti aslinya; jangan menambah atau mengurangi informasi; '
             ."hanya ubah gaya dan penyajian. Keluarkan hanya jawaban akhir.\n"
             .$section;
 

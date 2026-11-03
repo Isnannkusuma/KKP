@@ -515,6 +515,20 @@ test('guest users are redirected to login for personal data questions', function
     expect($response->json('answer'))->toContain('login');
 });
 
+test('guest users are asked to log in before asking about their potential development', function () {
+    $response = $this->post(route('chat.process'), [
+        'message' => 'apa saja yang perlu saya kembangkan dari potensi saya?',
+        'history' => [],
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('require_login', true)
+        ->assertJsonPath('redirect_to', route('login'));
+    expect($response->json('answer'))
+        ->toContain('potensi')
+        ->toContain('Portal KKP');
+});
+
 test('guest users are redirected to login for complete personal summary requests', function () {
     $response = $this->post(route('chat.process'), [
         'message' => 'informasi pribadi saya secara lengkap',

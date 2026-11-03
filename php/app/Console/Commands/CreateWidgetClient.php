@@ -10,9 +10,10 @@ class CreateWidgetClient extends Command
 {
     protected $signature = 'widget:create
         {name : Nama situs, misal "Portal SDMAO"}
-        {origin* : Satu atau lebih domain yang diizinkan, misal https://portal.kkp.go.id}';
+        {origin* : Satu atau lebih domain yang diizinkan, misal https://portal.kkp.go.id}
+        {--dashboard : Buat kode embed dashboard monitoring (angka agregat publik)}';
 
-    protected $description = 'Buat widget client baru (widget_key + secret_key) untuk situs yang akan pasang widget chatbot';
+    protected $description = 'Daftarkan situs untuk widget chatbot dan dashboard monitoring';
 
     public function handle(): int
     {
@@ -36,6 +37,7 @@ class CreateWidgetClient extends Command
             'secret_key' => $secretKey,
             'allowed_origins' => $origins,
             'is_active' => true,
+            'dashboard_enabled' => (bool) $this->option('dashboard'),
         ]);
 
         $this->newLine();
@@ -50,12 +52,19 @@ class CreateWidgetClient extends Command
                 ['Widget Key (publik, dipasang di embed script)', $client->widget_key],
                 ['Secret Key (RAHASIA, untuk sign token identitas di backend situs lain)', $client->secret_key],
                 ['Allowed Origins', implode(', ', $client->allowed_origins)],
+                ['Dashboard Monitoring', $client->dashboard_enabled ? 'Aktif (agregat publik)' : 'Nonaktif'],
             ]
         );
 
         $this->newLine();
         $this->comment('Kode embed untuk dipasang di situs mereka:');
         $this->line('<script src="'.config('app.url')."/widget/loader.js\" data-widget-key=\"{$client->widget_key}\" async></script>");
+
+        if ($client->dashboard_enabled) {
+            $this->newLine();
+            $this->comment('Kode embed dashboard monitoring (hanya angka agregat):');
+            $this->line('<script src="'.config('app.url')."/widget/dashboard.js\" data-widget-key=\"{$client->widget_key}\" async></script>");
+        }
 
         return self::SUCCESS;
     }

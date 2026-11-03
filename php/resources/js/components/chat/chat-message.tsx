@@ -1099,7 +1099,9 @@ function renderCompleteList(content: string): ReactNode {
 }
 
 function renderMessageWithLinks(content: string): ReactNode {
-    const normalizedContent = content.replace(/<(https?:\/\/[^>\s]+)>/gi, '$1');
+    const normalizedContent = content
+        .replace(/<(https?:\/\/[^>\s]+)>/gi, '$1')
+        .replace(/\[[^\]]+\]\((https?:\/\/[^)\s]+)\)/gi, '$1');
     const parts = normalizedContent.split(/(https?:\/\/[^\s<>"']+)/gi);
 
     return parts.map((part, index) => {
@@ -1107,23 +1109,30 @@ function renderMessageWithLinks(content: string): ReactNode {
             return part;
         }
 
+        const trailingPunctuation = part.match(/[.,;!?]+$/)?.[0] ?? '';
+        const link = trailingPunctuation ? part.slice(0, -trailingPunctuation.length) : part;
+
         try {
-            const url = new URL(part);
+            const url = new URL(link);
 
             if (url.protocol !== 'http:' && url.protocol !== 'https:') {
                 return part;
             }
 
+            const isPdf = /\.pdf(?:$|[?#])/i.test(url.href);
+
             return (
-                <a
-                    key={`link-${index}`}
-                    href={url.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="break-all text-teal-700 underline decoration-teal-500 underline-offset-2 hover:text-teal-900"
-                >
-                    Buka PDF
-                </a>
+                <span key={`link-${index}`}>
+                    <a
+                        href={url.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="break-all text-teal-700 underline decoration-teal-500 underline-offset-2 hover:text-teal-900"
+                    >
+                        {isPdf ? 'Buka PDF' : 'Buka tautan'}
+                    </a>
+                    {trailingPunctuation}
+                </span>
             );
         } catch {
             return part;

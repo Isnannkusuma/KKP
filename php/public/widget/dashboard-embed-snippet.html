@@ -1,0 +1,476 @@
+<!-- Salin seluruh snippet ini ke HTML atau Blade -->
+<div data-chatbot-dashboard
+        data-config='{"period":30,"stats":{"total":1488,"answered":1219,"unanswered":267},"daily":[{"date":"2026-10-05","label":"05 Okt","total":12,"answered":10,"unanswered":2},{"date":"2026-10-06","label":"06 Okt","total":18,"answered":15,"unanswered":3},{"date":"2026-10-07","label":"07 Okt","total":10,"answered":8,"unanswered":2},{"date":"2026-10-08","label":"08 Okt","total":21,"answered":17,"unanswered":4},{"date":"2026-10-09","label":"09 Okt","total":15,"answered":12,"unanswered":3},{"date":"2026-10-10","label":"10 Okt","total":28,"answered":23,"unanswered":5},{"date":"2026-10-11","label":"11 Okt","total":9,"answered":7,"unanswered":2},{"date":"2026-10-12","label":"12 Okt","total":22,"answered":18,"unanswered":4},{"date":"2026-10-13","label":"13 Okt","total":11,"answered":9,"unanswered":2},{"date":"2026-10-14","label":"14 Okt","total":35,"answered":29,"unanswered":6},{"date":"2026-10-15","label":"15 Okt","total":17,"answered":14,"unanswered":3},{"date":"2026-10-16","label":"16 Okt","total":19,"answered":16,"unanswered":3},{"date":"2026-10-17","label":"17 Okt","total":8,"answered":7,"unanswered":1},{"date":"2026-10-18","label":"18 Okt","total":30,"answered":24,"unanswered":6},{"date":"2026-10-19","label":"19 Okt","total":12,"answered":10,"unanswered":2},{"date":"2026-10-20","label":"20 Okt","total":9,"answered":8,"unanswered":1},{"date":"2026-10-21","label":"21 Okt","total":24,"answered":20,"unanswered":4},{"date":"2026-10-22","label":"22 Okt","total":16,"answered":13,"unanswered":3},{"date":"2026-10-23","label":"23 Okt","total":20,"answered":17,"unanswered":3},{"date":"2026-10-24","label":"24 Okt","total":41,"answered":34,"unanswered":7},{"date":"2026-10-25","label":"25 Okt","total":13,"answered":11,"unanswered":2},{"date":"2026-10-26","label":"26 Okt","total":14,"answered":11,"unanswered":3},{"date":"2026-10-27","label":"27 Okt","total":12,"answered":10,"unanswered":2},{"date":"2026-10-28","label":"28 Okt","total":26,"answered":21,"unanswered":5},{"date":"2026-10-29","label":"29 Okt","total":15,"answered":13,"unanswered":2},{"date":"2026-10-30","label":"30 Okt","total":18,"answered":15,"unanswered":3},{"date":"2026-10-31","label":"31 Okt","total":16,"answered":13,"unanswered":3},{"date":"2026-11-01","label":"01 Nov","total":23,"answered":19,"unanswered":4},{"date":"2026-11-02","label":"02 Nov","total":17,"answered":14,"unanswered":3},{"date":"2026-11-03","label":"03 Nov","total":21,"answered":18,"unanswered":3}]}'></div>
+<script>
+(function () {
+    'use strict';
+
+    var embedScript = document.currentScript;
+
+    var stylesheet = [
+        ':host{--teal:#078b83;--bar:#53b7a5;--ink:#172033;--muted:#607596;display:block;color:var(--ink);font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}',
+        '*{box-sizing:border-box}',
+        '.dashboard{display:grid;gap:26px;padding:24px 28px;background:transparent}',
+        '.header,.card{border:1px solid #d5e5e7;border-radius:18px;background:rgba(255,255,255,.96);box-shadow:0 8px 26px rgba(32,75,82,.06)}',
+        '.header{display:flex;min-height:122px;align-items:center;justify-content:space-between;gap:24px;padding:20px 22px}',
+        '.status{display:flex;align-items:center;gap:9px;margin:0 0 8px;color:#00a879;font-size:13px}',
+        '.status-dot{width:8px;height:8px;border-radius:50%;background:#00be83}',
+        'h1{margin:0;font-size:24px;font-weight:750;letter-spacing:-.04em;line-height:1.25}',
+        '.subtitle,.chart-heading p{margin:4px 0 0;color:var(--muted);font-size:14px}',
+        '.controls{display:flex;flex-wrap:wrap;align-items:center;gap:9px}',
+        'select,.refresh{height:42px;border:1px solid #d8e5e8;border-radius:999px;background:#fff;color:#34445c;box-shadow:0 2px 4px rgba(27,55,66,.1)}',
+        'select{padding:0 14px;font:inherit;font-size:14px}',
+        '.refresh{display:grid;width:42px;place-items:center;cursor:pointer;color:var(--teal)}',
+        '.refresh svg,.icon svg{width:20px;height:20px;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.8}',
+        '.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}',
+        '.metric{display:flex;min-height:174px;align-items:center;justify-content:space-between;gap:16px;padding:26px}',
+        '.label{margin:0;color:var(--muted);font-size:14px}',
+        '.value{margin:12px 0 4px;font-size:32px;font-weight:750;letter-spacing:-.035em;line-height:1}',
+        '.detail{margin:8px 0 0;color:#8ca0bd;font-size:12px}',
+        '.icon{display:grid;width:44px;height:44px;flex:0 0 44px;place-items:center;border-radius:13px}',
+        '.icon-info{background:#eaf5f3;color:var(--teal)}.icon-success{background:#eafbf3;color:#00a879}.icon-warning{background:#fff9e8;color:#ed8500}',
+        '.charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:26px}',
+        '.chart-card{min-width:0;padding:24px 26px 20px}',
+        '.chart-heading h2{margin:0;font-size:16px;font-weight:650}',
+        '.chart-ratios{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}',
+        '.chart-ratio{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border:1px solid #e2eceb;border-radius:999px;background:#fff;color:var(--muted);font-size:12px;font-weight:600}',
+        '.chart-ratio i{width:8px;height:8px;border-radius:50%}',
+        '.chart-ratio-answered i{background:var(--teal)}.chart-ratio-unanswered i{background:#ff9a00}',
+        '.chart{position:relative;margin-top:30px}',
+        '.plot{display:grid;height:224px;grid-template-columns:repeat(var(--days),minmax(0,1fr));align-items:stretch;gap:5px;overflow:visible;border-bottom:1px solid #d5e5e7;border-left:1px solid #d5e5e7;padding:0 5px}',
+        '.day-hit{display:flex;width:100%;min-width:0;height:100%;align-items:end;justify-content:center;padding:0;border:0;background:transparent;cursor:pointer}',
+        '.day-hit:focus-visible{outline:2px solid var(--teal);outline-offset:2px}',
+        '.bar,.answered-bar,.unanswered-bar{display:block;min-width:2px;border-radius:6px 6px 0 0}',
+        '.bar,.answered-bar{background:var(--bar)}.bar{width:100%}',
+        '.resolution-bars{display:flex;width:100%;height:100%;align-items:end;justify-content:center;gap:2px}',
+        '.resolution-bars span{width:min(calc(50% - 1px),12px)}.unanswered-bar{background:#ff9a00}',
+        '.chart-tooltip{position:absolute;z-index:3;display:grid;min-width:176px;gap:4px;padding:10px 12px;border:1px solid #d5e5e7;border-radius:10px;background:#fff;color:var(--ink);box-shadow:0 8px 24px rgba(32,75,82,.18);font-size:12px;pointer-events:none}',
+        '.chart-tooltip[hidden]{display:none}',
+        '.chart-tooltip strong{margin-bottom:2px;font-size:13px}',
+        '.tooltip-answered{color:#078b83}.tooltip-unanswered{color:#d97706}.tooltip-total{color:var(--muted)}',
+        '.axis{display:grid;grid-template-columns:repeat(var(--days),minmax(0,1fr));gap:5px;padding-top:9px;color:#879bb7;font-size:12px}',
+        '.axis span{white-space:nowrap}',
+        '.legend{display:flex;flex-wrap:wrap;gap:20px;padding-top:13px;color:var(--muted);font-size:12px}',
+        '.legend span{display:inline-flex;align-items:center;gap:7px}.legend i{width:9px;height:9px;border-radius:50%}',
+        '.legend-answered{background:var(--teal)}.legend-unanswered{background:#ff9a00}',
+        '.empty{grid-column:1/-1;align-self:center;margin:0;color:var(--muted);font-size:13px;text-align:center}',
+        '.message{margin:0;padding:12px 16px;border:1px solid #f4c7c7;border-radius:10px;background:#fff6f6;color:#a52a2a;font-size:13px}',
+        '.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;clip-path:inset(50%)}',
+        '@media(max-width:900px){.header{align-items:flex-start;flex-direction:column}.charts{grid-template-columns:1fr}}',
+        '@media(max-width:640px){.dashboard{gap:16px;padding:14px}.header,.metric,.chart-card{padding:18px}.metrics{grid-template-columns:1fr;gap:12px}.metric{min-height:138px}.controls{width:100%}.chart-card{overflow:hidden}.plot,.axis{gap:2px}}',
+    ].join('');
+
+    var icons = {
+        questions: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 10h8m-8 4h5m7-7v10a2 2 0 0 1-2 2h-4l-4 3v-3H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Zm-3-4h3a2 2 0 0 1 2 2v3"/></svg>',
+        answered: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.3 2.3 4.7-4.8"/></svg>',
+        unanswered: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 8v4m0 4h.01M5 4h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-7l-5 3v-3H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/></svg>',
+        refresh: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5m-3.1-3A7 7 0 0 1 18 7l2 5M4 12l2 5a7 7 0 0 0 12.1-2"/></svg>',
+    };
+
+    function element(tag, className, text) {
+        var node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+    }
+
+    function number(value) {
+        var parsed = Number(value);
+        return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0;
+    }
+
+    function normalise(data, fallbackPeriod) {
+        var source = data && typeof data === 'object' ? data : {};
+        var stats = source.stats && typeof source.stats === 'object' ? source.stats : {};
+        var daily = Array.isArray(source.daily) ? source.daily : [];
+
+        return {
+            period: number(source.period || fallbackPeriod || 30),
+            stats: {
+                total: number(stats.total),
+                answered: number(stats.answered),
+                unanswered: number(stats.unanswered),
+            },
+            daily: daily.map(function (item) {
+                var day = item && typeof item === 'object' ? item : {};
+                return {
+                    label: String(day.label || day.date || ''),
+                    total: number(day.total),
+                    answered: number(day.answered),
+                    unanswered: number(day.unanswered),
+                };
+            }),
+        };
+    }
+
+    function readConfig(root) {
+        var config = {};
+        var raw = root.getAttribute('data-config');
+        if (raw) {
+            try {
+                config = JSON.parse(raw);
+            } catch (error) {
+                throw new Error('Isi data-config bukan JSON yang valid.');
+            }
+        }
+
+        if (!config || typeof config !== 'object' || Array.isArray(config)) {
+            throw new Error('data-config harus berupa object JSON.');
+        }
+
+        return config;
+    }
+
+    function mount(root, suppliedConfig) {
+        if (root.__chatbotMonitoringMounted) return;
+        root.__chatbotMonitoringMounted = true;
+
+        var shadow = root.attachShadow({ mode: 'open' });
+        var style = element('style');
+        style.textContent = stylesheet;
+        shadow.appendChild(style);
+
+        var config;
+        try {
+            config = suppliedConfig || readConfig(root);
+        } catch (error) {
+            shadow.appendChild(element('p', 'message', error.message));
+            console.error('[Chatbot Dashboard]', error);
+            return;
+        }
+
+        var state = normalise(config, config.period);
+        var endpoint = typeof config.endpoint === 'string' ? config.endpoint : '';
+        var credentials = ['omit', 'same-origin', 'include'].indexOf(config.credentials) >= 0
+            ? config.credentials
+            : 'same-origin';
+        var app = element('section', 'dashboard');
+        app.setAttribute('aria-label', 'Monitoring Layanan CSAI Biro SDMAO KKP');
+        shadow.appendChild(app);
+
+        function render() {
+            app.replaceChildren();
+            var header = element('header', 'header');
+            var heading = element('div');
+            var status = element('p', 'status');
+            status.appendChild(element('span', 'status-dot'));
+            status.appendChild(document.createTextNode('Sistem aktif · ' + (endpoint ? 'Data real-time' : 'Data statis')));
+            heading.appendChild(status);
+            heading.appendChild(element('h1', '', 'Monitoring Layanan CSAI Biro SDMAO KKP'));
+            heading.appendChild(element('p', 'subtitle', 'Analisis penggunaan dan resolusi jawaban.'));
+
+            var controls = element('div', 'controls');
+            var periodLabel = element('label');
+            periodLabel.textContent = 'Periode data';
+            periodLabel.setAttribute('for', 'dashboard-period');
+            periodLabel.className = 'sr-only';
+            var select = element('select');
+            select.id = 'dashboard-period';
+            select.setAttribute('aria-label', 'Periode data');
+            [7, 30, 90].forEach(function (period) {
+                var option = element('option', '', period + ' hari terakhir');
+                option.value = String(period);
+                option.selected = state.period === period;
+                select.appendChild(option);
+            });
+            select.addEventListener('change', function () {
+                state.period = number(select.value);
+                if (endpoint) loadData();
+                else render();
+            });
+            var refresh = element('button', 'refresh');
+            refresh.type = 'button';
+            refresh.setAttribute('aria-label', 'Muat ulang data');
+            refresh.title = 'Muat ulang data';
+            refresh.innerHTML = icons.refresh;
+            refresh.addEventListener('click', function () {
+                if (endpoint) loadData();
+                else window.location.reload();
+            });
+            controls.appendChild(periodLabel);
+            controls.appendChild(select);
+            controls.appendChild(refresh);
+            header.appendChild(heading);
+            header.appendChild(controls);
+            app.appendChild(header);
+
+            var stats = state.stats;
+            var resolutionRate = stats.total > 0 ? Math.round((stats.answered / stats.total) * 100) : 0;
+            var metrics = element('div', 'metrics');
+            metrics.appendChild(metric('Total pertanyaan', stats.total, 'Dalam ' + state.period + ' hari terakhir', 'info', icons.questions));
+            metrics.appendChild(metric('Tingkat resolusi', resolutionRate + '%', stats.answered + ' pertanyaan terjawab', 'success', icons.answered));
+            metrics.appendChild(metric('Pertanyaan belum terjawab', stats.unanswered, 'Belum ditemukan jawaban relevan', 'warning', icons.unanswered));
+            app.appendChild(metrics);
+
+            var charts = element('div', 'charts');
+            charts.appendChild(activityChart(state.daily, stats));
+            charts.appendChild(resolutionChart(state.daily, stats));
+            app.appendChild(charts);
+        }
+
+        function metric(label, value, detail, tone, icon) {
+            var card = element('article', 'card metric');
+            var content = element('div');
+            content.appendChild(element('p', 'label', label));
+            content.appendChild(element('p', 'value', String(value)));
+            content.appendChild(element('p', 'detail', detail));
+            var iconNode = element('span', 'icon icon-' + tone);
+            iconNode.innerHTML = icon;
+            iconNode.setAttribute('aria-hidden', 'true');
+            card.appendChild(content);
+            card.appendChild(iconNode);
+            return card;
+        }
+
+        function chartCard(title, subtitle) {
+            var card = element('article', 'card chart-card');
+            var heading = element('div', 'chart-heading');
+            heading.appendChild(element('h2', '', title));
+            heading.appendChild(element('p', '', subtitle));
+            card.appendChild(heading);
+            return card;
+        }
+
+        function makePlot(className, days) {
+            var plot = element('div', className);
+            plot.style.setProperty('--days', String(Math.max(days.length, 1)));
+            return plot;
+        }
+
+        function createDayTooltip(chart) {
+            var tooltip = element('div', 'chart-tooltip');
+            tooltip.hidden = true;
+            tooltip.setAttribute('role', 'status');
+            tooltip.setAttribute('aria-live', 'polite');
+            chart.appendChild(tooltip);
+            var pinnedIndex = null;
+
+            function show(day, index, event, pin) {
+                if (pin) pinnedIndex = pinnedIndex === index ? null : index;
+                tooltip.replaceChildren(
+                    element('strong', '', day.label),
+                    element('span', 'tooltip-total', 'Total pertanyaan: ' + day.total),
+                    element('span', 'tooltip-answered', 'Terjawab: ' + day.answered),
+                    element('span', 'tooltip-unanswered', 'Belum terjawab: ' + day.unanswered),
+                );
+                tooltip.hidden = false;
+
+                var chartBounds = chart.getBoundingClientRect();
+                var pointerX = event && Number.isFinite(event.clientX)
+                    ? event.clientX - chartBounds.left
+                    : chartBounds.width / 2;
+                var pointerY = event && Number.isFinite(event.clientY)
+                    ? event.clientY - chartBounds.top
+                    : 0;
+                var tooltipHalfWidth = Math.max(88, Math.min(110, chartBounds.width / 2 - 8));
+                tooltip.style.left = Math.max(tooltipHalfWidth, Math.min(chartBounds.width - tooltipHalfWidth, pointerX)) + 'px';
+                tooltip.style.top = Math.max(0, pointerY - 94) + 'px';
+            }
+
+            function hide() {
+                if (pinnedIndex === null) tooltip.hidden = true;
+            }
+
+            chart.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    pinnedIndex = null;
+                    tooltip.hidden = true;
+                }
+            });
+
+            return {
+                attach: function (button, day, index) {
+                    button.addEventListener('pointerenter', function (event) {
+                        if (pinnedIndex === null || pinnedIndex === index) show(day, index, event, false);
+                    });
+                    button.addEventListener('pointermove', function (event) {
+                        if (pinnedIndex === null || pinnedIndex === index) show(day, index, event, false);
+                    });
+                    button.addEventListener('pointerleave', hide);
+                    button.addEventListener('focus', function () {
+                        show(day, index, null, false);
+                    });
+                    button.addEventListener('blur', hide);
+                    button.addEventListener('click', function (event) {
+                        event.stopPropagation();
+                        show(day, index, event, true);
+                        if (pinnedIndex === null) tooltip.hidden = true;
+                    });
+                },
+            };
+        }
+
+        function activityChart(days, stats) {
+            var card = chartCard('Aktivitas pertanyaan', 'Volume pertanyaan pengguna per hari.');
+            var answerRate = stats.total > 0 ? Math.round((stats.answered / stats.total) * 100) : 0;
+            var unansweredRate = stats.total > 0 ? Math.round((stats.unanswered / stats.total) * 100) : 0;
+            var ratios = element('div', 'chart-ratios');
+            ratios.appendChild(ratioBadge('chart-ratio-answered', 'Terjawab ' + answerRate + '%'));
+            ratios.appendChild(ratioBadge('chart-ratio-unanswered', 'Belum terjawab ' + unansweredRate + '%'));
+            card.children[0].appendChild(ratios);
+            var chart = element('div', 'chart');
+            var plot = makePlot('plot', days);
+            plot.setAttribute('aria-label', 'Grafik volume pertanyaan pengguna per hari');
+            var maximum = Math.max.apply(null, days.map(function (day) { return day.total; }).concat([1]));
+            var tooltip = createDayTooltip(chart);
+
+            if (days.length === 0) {
+                plot.appendChild(element('p', 'empty', 'Belum ada data pada periode ini.'));
+            } else {
+                days.forEach(function (day, index) {
+                    var bar = element('button', 'day-hit');
+                    bar.type = 'button';
+                    bar.setAttribute('aria-label', day.label + ': ' + day.total + ' pertanyaan, ' + day.answered + ' terjawab, ' + day.unanswered + ' belum terjawab. Klik untuk melihat rincian.');
+                    var barColumn = element('span', 'bar');
+                    barColumn.style.height = day.total ? Math.max(3, (day.total / maximum) * 100) + '%' : '0%';
+                    barColumn.setAttribute('aria-hidden', 'true');
+                    bar.appendChild(barColumn);
+                    tooltip.attach(bar, day, index);
+                    plot.appendChild(bar);
+                });
+            }
+            chart.appendChild(plot);
+
+            if (days.length > 0) {
+                var axis = element('div', 'axis');
+                axis.style.setProperty('--days', String(days.length));
+                days.forEach(function (day, index) {
+                    axis.appendChild(element('span', '', index % 5 === 0 || index === days.length - 1 ? day.label : ''));
+                });
+                chart.appendChild(axis);
+            }
+
+            card.appendChild(chart);
+            return card;
+        }
+
+        function ratioBadge(colorClass, label) {
+            var badge = element('span', 'chart-ratio ' + colorClass);
+            badge.appendChild(element('i'));
+            badge.appendChild(document.createTextNode(label));
+            return badge;
+        }
+
+        function resolutionChart(days, stats) {
+            var card = chartCard('Resolusi per hari', 'Perbandingan jawaban berhasil dan yang belum terjawab.');
+            var chart = element('div', 'chart');
+            var plot = makePlot('plot', days);
+            plot.setAttribute('aria-label', 'Grafik perbandingan jawaban berhasil dan belum terjawab per hari');
+            var maximum = Math.max.apply(null, days.map(function (day) { return day.total; }).concat([1]));
+            var tooltip = createDayTooltip(chart);
+
+            if (days.length === 0) {
+                plot.appendChild(element('p', 'empty', 'Belum ada data pada periode ini.'));
+            } else {
+                days.forEach(function (day, index) {
+                    var button = element('button', 'day-hit');
+                    button.type = 'button';
+                    button.setAttribute('aria-label', day.label + ': ' + day.answered + ' terjawab, ' + day.unanswered + ' belum terjawab. Klik untuk melihat rincian.');
+                    var group = element('span', 'resolution-bars');
+                    var answered = element('span', 'answered-bar');
+                    var unanswered = element('span', 'unanswered-bar');
+                    answered.style.height = day.answered ? Math.max(3, (day.answered / maximum) * 100) + '%' : '0%';
+                    unanswered.style.height = day.unanswered ? Math.max(3, (day.unanswered / maximum) * 100) + '%' : '0%';
+                    group.appendChild(answered);
+                    group.appendChild(unanswered);
+                    group.setAttribute('aria-hidden', 'true');
+                    button.appendChild(group);
+                    tooltip.attach(button, day, index);
+                    plot.appendChild(button);
+                });
+            }
+            chart.appendChild(plot);
+
+            var legend = element('div', 'legend');
+            legend.appendChild(legendItem('legend-answered', 'Terjawab: ' + stats.answered));
+            legend.appendChild(legendItem('legend-unanswered', 'Belum terjawab: ' + stats.unanswered));
+            chart.appendChild(legend);
+            card.appendChild(chart);
+            return card;
+        }
+
+        function legendItem(colorClass, label) {
+            var item = element('span');
+            item.appendChild(element('i', colorClass));
+            item.appendChild(document.createTextNode(label));
+            return item;
+        }
+
+        function loadData() {
+            var url;
+            try {
+                url = new URL(endpoint, document.baseURI);
+            } catch (error) {
+                showError('Alamat endpoint data tidak valid.');
+                console.error('[Chatbot Dashboard]', error);
+                return;
+            }
+            url.searchParams.set('period', String(state.period));
+            if (config.widgetKey) {
+                url.searchParams.set('widget_key', config.widgetKey);
+            }
+            render();
+
+            fetch(url.toString(), {
+                headers: { Accept: 'application/json' },
+                credentials: credentials,
+            }).then(function (response) {
+                if (!response.ok) throw new Error('Server mengembalikan HTTP ' + response.status + '.');
+                return response.json();
+            }).then(function (data) {
+                if (!data || typeof data !== 'object' || !data.stats || !Array.isArray(data.daily)) {
+                    throw new Error('Format data API tidak sesuai. Diperlukan object stats dan array daily.');
+                }
+                state = normalise(data, state.period);
+                render();
+            }).catch(function (error) {
+                showError('Data dashboard gagal dimuat. ' + error.message);
+                console.error('[Chatbot Dashboard]', error);
+            });
+        }
+
+        function showError(message) {
+            var existing = shadow.querySelector('.message');
+            if (existing) existing.remove();
+            app.prepend(element('p', 'message', message));
+        }
+
+        render();
+        if (endpoint) loadData();
+    }
+
+    function start() {
+        var widgetKey = embedScript && embedScript.getAttribute('data-widget-key');
+        if (widgetKey) {
+            var root = document.createElement('div');
+            root.setAttribute('data-chatbot-dashboard', '');
+            if (embedScript && embedScript.parentNode) {
+                embedScript.parentNode.insertBefore(root, embedScript);
+                embedScript.remove();
+            } else {
+                document.body.appendChild(root);
+            }
+            mount(root, {
+                period: 30,
+                endpoint: new URL('/api/widget/dashboard', embedScript.src).toString(),
+                widgetKey: widgetKey,
+            });
+            return;
+        }
+
+        document.querySelectorAll('[data-chatbot-dashboard]').forEach(function (root) {
+            mount(root);
+        });
+    }
+
+    window.ChatbotMonitoringDashboard = {
+        mount: mount,
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', start);
+    } else {
+        start();
+    }
+})();
+</script>

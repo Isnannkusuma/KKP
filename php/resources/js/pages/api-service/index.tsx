@@ -365,7 +365,7 @@ export default function ApiServiceIndex({
     return (
         <>
             <Head title="Service API" />
-            <div className="flex flex-1 flex-col gap-6 p-4 md:p-8">
+            <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-8">
                 {flash?.success && (
                     <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
                         {flash.success}
@@ -426,9 +426,9 @@ export default function ApiServiceIndex({
 
                 <form
                     onSubmit={submit}
-                    className="grid gap-4 rounded-xl border bg-card p-5 shadow-sm"
+                    className="grid min-w-0 gap-4 rounded-xl border bg-card p-4 shadow-sm sm:p-5"
                 >
-                    <div className="flex items-center justify-between">
+                    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <h2 className="font-semibold">
                                 {editing
@@ -453,16 +453,17 @@ export default function ApiServiceIndex({
                             </Button>
                         )}
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid min-w-0 gap-4 md:grid-cols-2">
                         <Input
+                            className="min-w-0"
                             aria-label="Nama service"
                             placeholder="Nama service"
                             value={form.name}
                             onChange={(e) => update('name', e.target.value)}
                         />
-                        <div className="flex gap-2">
+                        <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
                             <select
-                                className="h-10 rounded-md border bg-background px-3 text-sm"
+                                className="h-10 w-full rounded-md border bg-background px-3 text-sm sm:w-auto"
                                 value={form.method}
                                 onChange={(e) =>
                                     update('method', e.target.value)
@@ -475,15 +476,15 @@ export default function ApiServiceIndex({
                                 )}
                             </select>
                             <Input
-                                className="flex-1"
+                                className="min-w-0 flex-1"
                                 placeholder="https://api.contoh.go.id/pegawai/{{nip}}"
                                 value={form.url}
                                 onChange={(e) => update('url', e.target.value)}
                             />
                         </div>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <div className="flex flex-col gap-2 md:col-span-2">
+                    <div className="grid min-w-0 gap-4 md:grid-cols-2">
+                        <div className="flex min-w-0 flex-col gap-2 md:col-span-2">
                             <label className="text-sm font-medium">
                                 Endpoint untuk inspect field (opsional)
                             </label>
@@ -497,13 +498,14 @@ export default function ApiServiceIndex({
                             </span>
                         </div>
                     </div>
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <span className="text-sm text-muted-foreground">
                             Untuk endpoint yang sudah berjalan, bisa ambil field secara otomatis lalu pilih field yang ingin dipakai.
                         </span>
                         <Button
                             type="button"
                             variant="outline"
+                            className="w-full sm:w-auto"
                             onClick={() => void inspectEndpoint()}
                             disabled={inspectLoading || !form.url}
                         >
@@ -511,12 +513,13 @@ export default function ApiServiceIndex({
                         </Button>
                     </div>
                     <Textarea
+                        className="min-w-0 max-w-full"
                         placeholder="Deskripsi service (opsional)"
                         value={form.description}
                         onChange={(e) => update('description', e.target.value)}
                         rows={2}
                     />
-                    <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="grid min-w-0 gap-4 lg:grid-cols-2">
                         <JsonEditor
                             label="Headers"
                             value={form.headers}
@@ -647,14 +650,16 @@ export default function ApiServiceIndex({
                     {services.map((service) => (
                         <div
                             key={service.id}
-                            className="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between"
+                            className="flex min-w-0 flex-col gap-3 rounded-lg border p-4 lg:flex-row lg:items-center lg:justify-between"
                         >
                             <div className="min-w-0">
-                                <div className="flex items-center gap-2">
+                                <div className="flex min-w-0 flex-wrap items-center gap-2">
                                     <span className="rounded bg-muted px-2 py-1 font-mono text-xs">
                                         {service.method}
                                     </span>
-                                    <strong>{service.name}</strong>
+                                    <strong className="break-words">
+                                        {service.name}
+                                    </strong>
                                     <span
                                         className={
                                             service.is_active
@@ -681,7 +686,7 @@ export default function ApiServiceIndex({
                                         .join(', ') || 'seluruh response'}
                                 </p>
                             </div>
-                            <div className="flex shrink-0 gap-2">
+                            <div className="flex flex-wrap gap-2 lg:flex-nowrap">
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -758,10 +763,10 @@ function JsonEditor({
     example: string;
 }) {
     return (
-        <label className="grid gap-2 text-sm font-medium">
+        <label className="grid min-w-0 gap-2 text-sm font-medium">
             {label}
             <Textarea
-                className="min-h-28 font-mono text-xs"
+                className="min-h-28 min-w-0 max-w-full font-mono text-xs"
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={example}

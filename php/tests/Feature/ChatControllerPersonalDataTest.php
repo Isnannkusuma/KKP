@@ -44,6 +44,8 @@ it('does not require login for general employee questions but protects personal 
     expect($requiresLogin('apa kebijakan cuti pegawai?'))->toBeFalse()
         ->and($requiresLogin('siapa saja pegawai yang dilantik hari ini?'))->toBeFalse()
         ->and($requiresLogin('berapa NIP pegawai saya?'))->toBeTrue()
+        ->and($requiresLogin('apa saja yang perlu saya kembangkan dari potensi saya?'))->toBeTrue()
+        ->and($requiresLogin('apa potensi pegawai yang perlu dikembangkan?'))->toBeFalse()
         ->and($requiresLogin('informasi pribadi saya secara lengkap'))->toBeTrue();
 });
 
@@ -54,6 +56,7 @@ it('limits AiRHA requests to authenticated personal employment topics', function
 
     expect($method->invoke($controller, 'Bagaimana kompetensi saya?', $user))->toBe(['kompetensi'])
         ->and($method->invoke($controller, 'Apa potensi dan kompetensi saya?', $user))->toBe(['potensi', 'kompetensi'])
+        ->and($method->invoke($controller, 'Apa saja yang perlu saya kembangkan dari potensi saya?', $user))->toBe(['potensi', 'kompetensi'])
         ->and($method->invoke($controller, 'Bagaimana kompetensi pegawai?', $user))->toBe([])
         ->and($method->invoke($controller, 'Bagaimana kompetensi saya?', null))->toBe([])
         ->and($method->invoke($controller, 'Apa kompetensi saya untuk NIP 198801012023011002?', $user))->toBe([]);
@@ -80,11 +83,15 @@ it('recognizes personal status and leave clarification without treating regulati
     $controller = makeChatController();
     $isEmploymentStatus = new ReflectionMethod(ChatController::class, 'isEmploymentStatusQuestion');
     $isLeaveClarification = new ReflectionMethod(ChatController::class, 'isLeaveClarificationRequest');
+    $isLeaveQuestion = new ReflectionMethod(ChatController::class, 'isLeaveQuestion');
     $employmentStatusFromData = new ReflectionMethod(ChatController::class, 'employmentStatusFromData');
 
     expect($isEmploymentStatus->invoke($controller, 'Apakah status kepegawaian saya PNS atau PPPK?'))->toBeTrue()
         ->and($isLeaveClarification->invoke($controller, 'Saya ingin mengajukan izin cuti'))->toBeTrue()
+        ->and($isLeaveClarification->invoke($controller, 'Bagaimana cara pengajuan libur cuti untuk pegawai?'))->toBeTrue()
         ->and($isLeaveClarification->invoke($controller, 'Saya ingin mengajukan cuti sakit'))->toBeFalse()
+        ->and($isLeaveQuestion->invoke($controller, 'Bagaimana cara pengajuan libur cuti untuk pegawai?'))->toBeTrue()
+        ->and($isLeaveQuestion->invoke($controller, 'Apa prosedur izin libur pegawai?'))->toBeTrue()
         ->and($employmentStatusFromData->invoke($controller, ['jenis_peg' => 'PPPK']))->toBe('PPPK')
         ->and($employmentStatusFromData->invoke($controller, ['jenis_peg' => 'Pegawai Pemerintah dengan Perjanjian Kerja']))->toBe('PPPK')
         ->and($employmentStatusFromData->invoke($controller, ['jenis_peg' => 'PNS']))->toBe('PNS')

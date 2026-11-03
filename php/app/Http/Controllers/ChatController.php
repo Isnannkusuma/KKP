@@ -850,7 +850,7 @@ class ChatController extends Controller
         $response = $this->chatResponse(
             $request,
             $userMessage,
-            'Untuk pertanyaan terkait data pribadi atau NIP, silakan login terlebih dahulu.',
+            'Untuk melihat potensi, kompetensi, atau informasi kepegawaian pribadi Anda, silakan masuk terlebih dahulu menggunakan akun Portal KKP.',
             [],
             'unanswered',
         );
@@ -1646,6 +1646,7 @@ class ChatController extends Controller
             ) === 1);
 
         return $explicitPersonalRequest
+            || $this->isPersonalAirhaQuestion($normalizedMessage)
             || ($refersToCurrentUser && (
                 (! $this->isRegulationQuery($normalizedMessage) || $this->isExplicitPersonalDataRequest($normalizedMessage))
                 && (
@@ -1856,12 +1857,27 @@ class ChatController extends Controller
         if (
             str_contains($lowerMessage, 'kompetensi')
             || str_contains($lowerMessage, 'pengembangan')
+            || str_contains($lowerMessage, 'kembang')
             || str_contains($lowerMessage, 'rekomendasi')
         ) {
             $topics[] = 'kompetensi';
         }
 
         return array_values(array_unique($topics));
+    }
+
+    protected function isPersonalAirhaQuestion(string $message): bool
+    {
+        $hasPersonalReference = preg_match(
+            '/\b(?:saya|aku|milik saya|untuk saya|profil saya|data saya|saya sendiri)\b/u',
+            $message,
+        ) === 1;
+        $hasAirhaTopic = preg_match(
+            '/\b(?:potensi|assessment|asesmen|kinerja|talent|talenta|kompetensi|pengembangan|kembang\w*|rekomendasi)\b/u',
+            $message,
+        ) === 1;
+
+        return $hasPersonalReference && $hasAirhaTopic;
     }
 
     protected function buildPersonalContext(string $message, $user): string
@@ -2082,7 +2098,7 @@ class ChatController extends Controller
 
     protected function isLeaveQuestion(string $message): bool
     {
-        return preg_match('/\b(?:cuti|izin\s+cuti|pengajuan\s+cuti)\b/iu', $message) === 1;
+        return preg_match('/\b(?:cuti|libur|izin\s+(?:cuti|libur)|pengajuan\s+(?:cuti|libur))\b/iu', $message) === 1;
     }
 
     protected function isLeaveClarificationRequest(string $message): bool
@@ -2091,7 +2107,7 @@ class ChatController extends Controller
             return false;
         }
 
-        $requestsLeave = preg_match('/\b(?:ingin|mau|hendak|berencana|ajukan|mengajukan|ambil|mengambil|permohonan)\b/iu', $message) === 1;
+        $requestsLeave = preg_match('/\b(?:ingin|mau|hendak|berencana|ajukan|mengajukan|pengajuan|ambil|mengambil|permohonan)\b/iu', $message) === 1;
         $includesLeaveType = preg_match(
             '/\b(?:tahunan|sakit|melahirkan|bersalin|keguguran|besar|alasan\s+penting|di\s+luar\s+tanggungan\s+negara|luar\s+tanggungan\s+negara|bersama)\b/iu',
             $message,

@@ -31,6 +31,7 @@
 
     // ---------- Iframe container ----------
     var container = document.createElement('div');
+    container.id = 'kkp-chat-widget-container';
     container.style.cssText = [
         'position:fixed', 'bottom:88px', 'right:20px', 'width:380px', 'max-width:92vw',
         'height:560px', 'max-height:75vh', 'border-radius:16px', 'overflow:hidden',
@@ -38,8 +39,17 @@
         'background:white',
     ].join(';');
 
+    var responsiveStyle = document.createElement('style');
+    responsiveStyle.textContent = '@media (max-width: 600px) {' +
+        '#kkp-chat-widget-container {' +
+        'inset:0 !important;width:100vw !important;height:100vh !important;height:100dvh !important;' +
+        'max-width:none !important;max-height:none !important;border-radius:0 !important;box-shadow:none !important;' +
+        '}' +
+        '}';
+    document.head.appendChild(responsiveStyle);
+
     var iframe = document.createElement('iframe');
-    var CHAT_HTML_VERSION = '7'; // naikkan angka ini tiap kali chat.html diupdate, supaya cache browser tidak nyangkut
+    var CHAT_HTML_VERSION = '9'; // naikkan angka ini tiap kali chat.html diupdate, supaya cache browser tidak nyangkut
     iframe.src = API_ORIGIN + '/widget/chat.html?widget_key=' + encodeURIComponent(widgetKey) + '&v=' + CHAT_HTML_VERSION;
     iframe.style.cssText = 'width:100%;height:100%;border:none;';
     iframe.setAttribute('title', 'Asisten Chat');
@@ -59,14 +69,35 @@
         }, API_ORIGIN);
     }
 
+    function updateBubbleVisibility() {
+        bubble.style.display = isOpen && window.matchMedia('(max-width: 600px)').matches
+            ? 'none'
+            : 'flex';
+    }
+
     function toggle() {
         isOpen = !isOpen;
         container.style.display = isOpen ? 'block' : 'none';
         bubble.innerHTML = isOpen ? '✕' : ICON_BOT;
+        bubble.setAttribute('aria-label', isOpen ? 'Tutup asisten chat' : 'Buka asisten chat');
+        updateBubbleVisibility();
         if (isOpen) hidePopup();
     }
 
     bubble.addEventListener('click', toggle);
+    window.addEventListener('resize', updateBubbleVisibility);
+
+    window.addEventListener('message', function (event) {
+        if (
+            event.source === iframe.contentWindow &&
+            event.origin === API_ORIGIN &&
+            event.data &&
+            event.data.type === 'kkp-chat-close' &&
+            isOpen
+        ) {
+            toggle();
+        }
+    });
 
     // ---------- Popup ajakan (muncul tiap halaman dibuka/refresh) ----------
     var style = document.createElement('style');

@@ -108,7 +108,7 @@ export default function Dashboard({ period, stats, daily, contextGroups, popular
                             <span className="size-2 rounded-full bg-emerald-500" />
                             <p className="text-xs font-medium text-emerald-600">Sistem aktif &middot; Data real-time</p>
                         </div>
-                        <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">Monitoring Chatbot</h1>
+                        <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">Monitoring Layanan CSAI Biro SDMAO KKP</h1>
                         <p className="text-sm text-slate-500">Analisis penggunaan dan resolusi jawaban.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">

@@ -23,6 +23,13 @@ test('SDMAO and Permen KP acronyms are expanded', function () {
         ->toBe('peraturan menteri kelautan dan perikanan nomor 2 tahun 2025');
 });
 
+test('leave and holiday phrases normalize to the same cuti query', function () {
+    expect(QueryNormalizer::normalize('bagaimana cara pengajuan libur cuti untuk pegawai?'))
+        ->toBe('bagaimana cara pengajuan cuti untuk pegawai?')
+        ->and(QueryNormalizer::normalize('bagaimana prosedur izin libur pegawai?'))
+        ->toBe('bagaimana prosedur cuti pegawai?');
+});
+
 test('configured chat shortcuts expand only as complete words', function () {
     ChatbotSetting::create([
         'query_aliases' => [

@@ -17,11 +17,13 @@ class WidgetClient extends Model
         'secret_key',
         'allowed_origins',
         'is_active',
+        'dashboard_enabled',
     ];
 
     protected $casts = [
         'allowed_origins' => 'array',
         'is_active' => 'boolean',
+        'dashboard_enabled' => 'boolean',
     ];
 
     protected $hidden = [
